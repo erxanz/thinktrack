@@ -1,0 +1,31 @@
+# Memblokir OpenAI (ChatGPT / GPTBot)
+User-agent: GPTBot
+Disallow: /
+
+# Memblokir ChatGPT-User (digunakan untuk interaksi langsung pengguna)
+User-agent: ChatGPT-User
+Disallow: /
+
+# Memblokir Google Extended (mencegah Gemini menggunakan konten Anda)
+User-agent: Google-Extended
+Disallow: /
+
+# Memblokir Anthropic (Claude)
+User-agent: Anthropic-AI
+Disallow: /
+
+# Memblokir ClaudeBot
+User-agent: ClaudeBot
+Disallow: /
+
+# Memblokir Common Crawl (database besar yang sering dipakai buat training AI)
+User-agent: CCBot
+Disallow: /
+
+# Memblokir Perplexity AI
+User-agent: PerplexityBot
+Disallow: /
+
+User-agent: *
+Disallow: /login
+Disallow: /register

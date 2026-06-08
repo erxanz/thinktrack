@@ -1,0 +1,18 @@
+notesones/
+├── app/
+│   ├── (auth)/         # Group route untuk login/register
+│   │   ├── login/
+│   │   └── register/
+│   ├── api/            # API Routes
+│   │   ├── auth/
+│   │   └── notes/
+│   ├── dashboard/      # Protected pages
+│   ├── layout.tsx
+│   └── page.tsx
+├── components/
+│   ├── editor/         # Monaco editor wrapper
+│   ├── layout/         # Sidebar, Navbar
+│   └── ui/             # Reusable UI (Buttons, Inputs)
+├── lib/                # Konfigurasi & helpers (prisma, auth)
+├── prisma/             # Schema & SQLite db
+└── types/              # TypeScript interfaces

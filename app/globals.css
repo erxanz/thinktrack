@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* app/globals.css */
+.markdown-preview h1 { @apply text-3xl font-bold mb-4 mt-6 border-b border-zinc-800 pb-2; }
+.markdown-preview h2 { @apply text-2xl font-semibold mb-3 mt-5; }
+.markdown-preview h3 { @apply text-xl font-medium mb-2 mt-4; }
+.markdown-preview p { @apply mb-4 leading-relaxed text-zinc-300; }
+.markdown-preview ul { @apply list-disc list-inside mb-4 text-zinc-300; }
+.markdown-preview ol { @apply list-decimal list-inside mb-4 text-zinc-300; }
+.markdown-preview a { @apply text-blue-400 hover:text-blue-300 underline; }
+.markdown-preview blockquote { @apply border-l-4 border-zinc-600 pl-4 italic text-zinc-400 my-4; }
+.markdown-preview code { @apply bg-zinc-800 px-1.5 py-0.5 rounded text-sm text-pink-400 font-mono; }
+.markdown-preview pre { @apply bg-[#1e1e1e] p-4 rounded-xl overflow-x-auto mb-4 border border-zinc-800; }
+.markdown-preview pre code { @apply bg-transparent p-0 text-zinc-300; }
+
+@media print {
+  /* 1. Sembunyikan layout aplikasi Next.js & elemen navigasi editor */
+  header,
+  footer,
+  aside,
+  button,
+  select,
+  nav,
+  .no-print {
+    display: none !important;
+  }
+
+  /* 2. Reset paksa body & HTML agar bersih tanpa scrollbar/flex monitor */
+  html, body {
+    background-color: #141414 !important; /* Warna tema gelap */
+    color: #d4d4d4 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important; /* Memaksa Chrome/Safari merender warna background */
+    print-color-adjust: exact !important;         /* Memaksa Firefox merender warna background */
+  }
+
+  /* 3. Atur posisi area cetak (Gunakan class .print-area sesuai komponen NotionEditor kita) */
+  .print-area {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background-color: #141414 !important;
+    color: #d4d4d4 !important;
+    padding: 18mm !important; /* Margin halaman kertas A4 yang ideal */
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  /* Pastikan syntax highlighter kode tidak hilang */
+  .print-area pre, 
+  .print-area code {
+    background-color: #0e0e0e !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
