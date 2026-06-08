@@ -33,6 +33,7 @@ model Topic {
   id          String   @id @default(uuid())
   userId      String
   title       String   // Contoh: Persamaan Kuadrat
+  category    String?   // Tambahkan ini (Contoh: "MATEMATIKA", "KODING", "BAHASA")
   description String?
   isCompleted Boolean  @default(false)
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
