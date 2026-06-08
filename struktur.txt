@@ -1,18 +1,36 @@
-notesones/
+thinktrack-app/
 ├── app/
-│   ├── (auth)/         # Group route untuk login/register
+│   ├── (auth)/             
 │   │   ├── login/
 │   │   └── register/
-│   ├── api/            # API Routes
-│   │   ├── auth/
-│   │   └── notes/
-│   ├── dashboard/      # Protected pages
+│   ├── api/                
+│   │   ├── ai/
+│   │   │   ├── analyze-trace/    # Endpoint untuk integrasi Claude API (Vision/Reasoning) [cite: 24]
+│   │   │   └── decompose-topic/  # Endpoint untuk memecah materi [cite: 19]
+│   │   └── topics/
+│   ├── (mobile-app)/             # Group route khusus pengalaman aplikasi
+│   │   ├── home/                 # Dashboard utama roadmap belajar 
+│   │   ├── learn/[topicId]/      # Halaman materi & ujian 
+│   │   └── analysis/[traceId]/   # Halaman feedback & analisis 
 │   ├── layout.tsx
 │   └── page.tsx
 ├── components/
-│   ├── editor/         # Monaco editor wrapper
-│   ├── layout/         # Sidebar, Navbar
-│   └── ui/             # Reusable UI (Buttons, Inputs)
-├── lib/                # Konfigurasi & helpers (prisma, auth)
-├── prisma/             # Schema & SQLite db
-└── types/              # TypeScript interfaces
+│   ├── input/                    # Komponen input khusus untuk HP
+│   │   ├── MathKeyboard.tsx      # Integrasi MathQuill untuk layar sentuh HP 
+│   │   ├── VoiceRecorder.tsx     # Web Speech API untuk alternatif HP [cite: 27]
+│   │   └── CanvasPad.tsx         # Tetap ada, namun di HP bisa disembunyikan/dikecilkan [cite: 25]
+│   ├── learning/                 
+│   │   ├── TopicRoadmap.tsx      # Menampilkan struktur dekomposisi [cite: 19]
+│   │   ├── ConceptAnalogy.tsx    # Menampilkan cerita/analogi sesuai umur pengguna [cite: 12]
+│   │   └── AIAnalysisCard.tsx    # Menampilkan letak miskonsepsi [cite: 17]
+│   ├── layout/                 
+│   │   ├── MobileBottomNav.tsx   # Navigasi bawah ramah jempol (pengganti Sidebar desktop)
+│   │   └── MobileHeader.tsx      
+│   └── ui/                     
+├── lib/                        
+│   ├── ai-prompts/               # Folder khusus menyimpan prompt profil kognitif [cite: 30]
+│   └── prisma.ts               
+├── public/
+│   └── manifest.json             # PWA manifest agar web responsif terasa seperti aplikasi HP asli
+└── prisma/                     
+    └── schema.prisma

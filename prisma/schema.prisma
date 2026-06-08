@@ -7,49 +7,69 @@ datasource db {
   provider = "postgresql"
 }
 
-enum NoteStatus {
-  draft
-  active
-  archived
+// 1. Menambahkan profil kognitif berdasarkan dokumen
+enum CognitiveMode {
+  ANAK    // Pendekatan analogi dan imajinasi [cite: 12]
+  REMAJA  // Contoh kontekstual dan relevan [cite: 13]
+  DEWASA  // Penjelasan formal dan teoritis [cite: 14]
 }
 
 model User {
-  id         String      @id @default(uuid())
-  name       String
-  email      String      @unique
-  password   String
-  createdAt  DateTime    @default(now())
-  notes      Note[]
-  aiSettings AISettings?
+  id            String        @id @default(uuid())
+  name          String
+  email         String        @unique
+  password      String
+  cognitiveMode CognitiveMode @default(REMAJA) // Profil kognitif pengguna [cite: 18]
+  createdAt     DateTime      @default(now())
+  
+  // Relasi
+  topics        Topic[]
+  traces        ThinkingTrace[]
+  aiSettings    AISettings?
 }
 
-model Note {
-  id          String     @id @default(uuid())
-  title       String
-  content     String
-  editorMode  String     @default("text")
-  scheduledAt DateTime?
-  tags        String[]   @default([])
-  pinned      Boolean    @default(false)
-  status      NoteStatus @default(active)
+// 2. Model untuk menyimpan dekomposisi submateri terstruktur [cite: 19]
+model Topic {
+  id          String   @id @default(uuid())
   userId      String
-  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  deletedAt   DateTime?
+  title       String   // Contoh: Persamaan Kuadrat
+  description String?
+  isCompleted Boolean  @default(false)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subtopics   Subtopic[]
+  createdAt   DateTime @default(now())
+}
+
+model Subtopic {
+  id          String   @id @default(uuid())
+  topicId     String
+  title       String
+  level       String   // Mudah, Menengah, Sulit
+  content     String   @db.Text
+  topic       Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  traces      ThinkingTrace[]
+}
+
+// 3. Model untuk menyimpan langkah pengerjaan (Thinking Trace) [cite: 16]
+model ThinkingTrace {
+  id               String   @id @default(uuid())
+  userId           String
+  subtopicId       String
+  inputMethod      String   // 'canvas', 'mathquill', atau 'voice' [cite: 25, 26, 27]
+  stepData         Json     // Menyimpan JSON dari langkah-langkah siswa 
+  misconceptions   Json?    // Deteksi miskonsepsi dari Claude AI [cite: 17, 24]
+  status           String   // 'pending', 'analyzed'
+  
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subtopic         Subtopic @relation(fields: [subtopicId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
 }
 
 model AISettings {
   id              String   @id @default(uuid())
   userId          String   @unique
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  geminiApiKey    String?
-  grokApiKey      String?
-
-  activeProvider  String   @default("gemini")
-  activeModel     String   @default("gemini-2.5-flash")
-
-  createdAt       DateTime @default(now())
+  anthropicApiKey String?  // Mengganti Grok karena dokumen menggunakan Claude API [cite: 24]
+  activeModel     String   @default("claude-3-sonnet")
   updatedAt       DateTime @updatedAt
 }
