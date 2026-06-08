@@ -28,8 +28,8 @@ export default function LoginPage() {
       toast.error("Email atau password salah!");
     } else {
       toast.success("Berhasil login!");
-      router.push("/dashboard");
-      router.refresh(); // Memaksa update state server
+      router.push("/home");
+      router.refresh();
     }
   };
 

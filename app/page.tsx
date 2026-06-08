@@ -1,52 +1,55 @@
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
-import { FiChevronRight, FiCode, FiLayout } from "react-icons/fi";
+import {
+  FiChevronRight,
+  FiCpu,
+  FiBookOpen,
+  FiCheckCircle,
+  FiAlertCircle,
+} from "react-icons/fi";
 
-export default async function Home() {
+export default async function LandingPage() {
   const session = await getServerSession(authOptions);
 
   return (
-    // PERBAIKAN: Ganti overflow-hidden menjadi overflow-x-hidden agar bisa di-scroll vertikal di HP
-    <div className="relative flex min-h-screen flex-col items-center justify-between overflow-x-hidden bg-[#0e0e0e] font-sans text-[#cccccc] selection:bg-[#007fd4] selection:text-white">
-      {/* Efek Glow Latar Belakang */}
-      <div className="pointer-events-none absolute left-1/2 top-1/2 -z-10 -translate-x-1/2 -translate-y-1/2">
-        {/* PERBAIKAN: Gunakan ukuran pasti seperti h-[400px] w-[400px] */}
-        <div className="h-100 w-100 rounded-full bg-[#007fd4] opacity-[0.05] blur-[80px] md:h-150 md:w-150 md:blur-[100px]" />
-      </div>
+    <div className="relative flex min-h-screen flex-col items-center justify-between overflow-x-hidden bg-[#0a0a0c] font-sans text-[#e2e8f0] selection:bg-blue-600 selection:text-white">
+      {/* Efek Gradasi Latar Belakang Mendalam */}
+      <div className="pointer-events-none absolute left-1/2 top-12 -z-10 h-125 w-125 -translate-x-1/2 rounded-full bg-blue-600 opacity-[0.08] blur-[120px] md:h-[600px] md:w-[600px]" />
+      <div className="pointer-events-none absolute right-10 bottom-10 -z-10 h-75 w-75 rounded-full bg-indigo-600 opacity-[0.05] blur-[100px]" />
 
-      <main className="z-10 flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-5 pt-16 text-center md:pt-24">
-        {/* Badge Intro */}
-        <div className="mb-6 flex items-center gap-2 rounded-full border border-[#333333] bg-[#1e1e1e] px-4 py-1.5 text-[11px] font-medium text-[#858585] shadow-sm md:text-[12px]">
-          <FiCode className="text-[#007fd4]" size={14} />
-          <span>Markdown & Code Editor Workspace</span>
+      <main className="z-10 flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-5 pt-20 text-center md:pt-28">
+        {/* Badge Fitur Utama */}
+        <div className="mb-6 flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/80 px-4 py-1.5 text-[11px] font-medium text-zinc-400 shadow-xl backdrop-blur-sm md:text-[12px]">
+          <FiCpu className="text-blue-500 animate-pulse" size={14} />
+          <span>AI-Powered Cognitive Adaptive Learning</span>
         </div>
 
-        {/* Heading & Deskripsi */}
-        <div className="max-w-3xl space-y-5 md:space-y-6">
-          {/* PERBAIKAN: bg-gradient-to-br adalah class Tailwind yang standar */}
-          <h1 className="text-4xl font-bold tracking-tight text-transparent bg-clip-text bg-linear-to-br from-white via-zinc-300 to-zinc-600 sm:text-6xl md:text-7xl">
-            Catatan Modern.
+        {/* Heading Utama & Tagline Edukasi */}
+        <div className="max-w-3xl space-y-6">
+          <h1 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-white via-zinc-200 to-zinc-500 sm:text-6xl md:text-7xl leading-tight">
+            Pahami Proses Berpikir,
             <br />
-            Simpel & Cepat.
+            Bukan Hanya Skor Akhir.
           </h1>
-          <p className="mx-auto max-w-xl text-sm leading-relaxed text-[#858585] sm:text-base md:text-lg">
-            Platform catatan berbasis Markdown dan Kode dengan fitur{" "}
-            <span className="text-[#cccccc]">syntax highlighting</span>. Simpan
-            ide, snippet kode, dan dokumentasi Anda dengan aman seperti di
-            editor favorit Anda.
+          <p className="mx-auto max-w-xl text-sm leading-relaxed text-zinc-400 sm:text-base md:text-lg">
+            ThinkTrack AI melacak pengerjaan matematika siswa{" "}
+            <span className="text-blue-400 font-medium">
+              langkah-demi-langkah
+            </span>
+            , mendeteksi miskonsepsi prasyarat, dan menyesuaikan gaya
+            penyampaian materi secara personal.
           </p>
         </div>
 
-        {/* Grup Tombol (Call to Action) */}
-        {/* PERBAIKAN: Tambahkan w-full dan justify-center agar tombol responsif di HP */}
-        <div className="mt-8 flex w-full flex-col items-center justify-center gap-3 sm:w-auto sm:flex-row md:mt-10 md:gap-4">
+        {/* Grup Tombol Aksi (CTA) */}
+        <div className="mt-10 flex w-full flex-col items-center justify-center gap-3 sm:w-auto sm:flex-row md:gap-4">
           {session ? (
             <Link
-              href="/dashboard"
-              className="group flex w-full items-center justify-center gap-2 rounded-md bg-[#007fd4] px-6 py-3.5 text-sm font-medium text-white transition-all hover:bg-[#006eb8] hover:shadow-[0_0_20px_rgba(0,127,212,0.3)] sm:w-auto sm:py-3">
-              <FiLayout size={16} />
-              Masuk ke Workspace
+              href="/home"
+              className="group flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-8 py-3.5 text-sm font-semibold text-white shadow-[0_4px_20px_rgba(37,99,235,0.3)] transition-all hover:bg-blue-500 hover:shadow-[0_4px_25px_rgba(37,99,235,0.5)] sm:w-auto">
+              <FiBookOpen size={16} />
+              Masuk ke Ruang Belajar
               <FiChevronRight
                 className="transition-transform group-hover:translate-x-1"
                 size={16}
@@ -56,8 +59,8 @@ export default async function Home() {
             <>
               <Link
                 href="/login"
-                className="group flex w-full items-center justify-center gap-2 rounded-md bg-[#007fd4] px-6 py-3.5 text-sm font-medium text-white transition-all hover:bg-[#006eb8] hover:shadow-[0_0_20px_rgba(0,127,212,0.3)] sm:w-auto sm:py-3">
-                Login Sekarang
+                className="group flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-8 py-3.5 text-sm font-semibold text-white shadow-[0_4px_20px_rgba(37,99,235,0.3)] transition-all hover:bg-blue-500 sm:w-auto">
+                Mulai Belajar Sekarang
                 <FiChevronRight
                   className="transition-transform group-hover:translate-x-1"
                   size={16}
@@ -65,77 +68,90 @@ export default async function Home() {
               </Link>
               <Link
                 href="/register"
-                className="flex w-full items-center justify-center gap-2 rounded-md border border-[#333333] bg-[#252526] px-6 py-3.5 text-sm font-medium text-[#cccccc] transition-colors hover:border-[#569cd6] hover:bg-[#2d2d2d] hover:text-white sm:w-auto sm:py-3">
-                Buat Akun Gratis
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/50 px-8 py-3.5 text-sm font-semibold text-zinc-300 transition-all hover:border-zinc-700 hover:bg-zinc-900 sm:w-auto">
+                Daftar Akun Baru
               </Link>
             </>
           )}
         </div>
 
-        {/* Visual Mockup: Fake VS Code / Notion Window */}
-        <div className="mt-16 w-full max-w-4xl overflow-hidden rounded-xl border border-[#333333] bg-[#1e1e1e] shadow-2xl md:mt-20">
-          {/* Mockup Header */}
-          <div className="flex items-center justify-between border-b border-[#2d2d2d] bg-[#252526] px-4 py-2.5 md:py-3">
-            <div className="flex gap-1.5 md:gap-2">
-              <div className="h-2.5 w-2.5 md:h-3 md:w-3 rounded-full bg-[#ff5f56]"></div>
-              <div className="h-2.5 w-2.5 md:h-3 md:w-3 rounded-full bg-[#ffbd2e]"></div>
-              <div className="h-2.5 w-2.5 md:h-3 md:w-3 rounded-full bg-[#27c93f]"></div>
+        {/* INTERAKTIF MOCKUP: Simulasi Tampilan PWA Mobile ThinkTrack AI */}
+        <div className="mt-16 w-full max-w-sm overflow-hidden rounded-[40px] border-8 border-zinc-800 bg-zinc-950 shadow-2xl transition-all duration-300 hover:border-zinc-700 md:mt-24">
+          {/* Status Bar Simulasi HP */}
+          <div className="flex items-center justify-between bg-zinc-900 px-6 py-3 text-[11px] font-semibold text-zinc-500 border-b border-zinc-950">
+            <div>12:12</div>
+            <div className="h-4 w-16 rounded-full bg-zinc-950 flex items-center justify-center text-[9px] text-zinc-600">
+              ThinkTrack PWA
             </div>
-            <div className="text-[10px] md:text-[11px] font-medium text-[#858585]">
-              workspace.md — Note Editor
+            <div className="flex gap-1">
+              <div className="h-2 w-2 rounded-full bg-zinc-500"></div>
+              <div className="h-2 w-3 rounded-sm bg-zinc-500"></div>
             </div>
-            <div className="w-10 md:w-12"></div> {/* Spacer */}
           </div>
 
-          {/* Mockup Body */}
-          {/* PERBAIKAN: Tambahkan overflow-x-auto agar kode bisa digeser di HP */}
-          <div className="flex w-full flex-col gap-1 overflow-x-auto bg-[#1e1e1e] p-5 text-left font-mono text-[12px] leading-relaxed text-[#d4d4d4] md:p-6 md:text-[13px]">
-            <div className="min-w-max">
-              {" "}
-              {/* Memaksa konten kode tidak melipat (wrap) secara berantakan */}
-              <p>
-                <span className="text-[#569cd6]">#</span>{" "}
-                <span>Selamat Datang di Catatan Modern</span>
-              </p>
-              <br />
-              <p className="text-[#6a9955]">
-                {"// Ketik apapun di sini, dukung format markdown dan kode."}
-              </p>
-              <br />
-              <p>
-                <span className="text-[#c586c0]">export</span>{" "}
-                <span className="text-[#c586c0]">function</span>{" "}
-                <span className="text-[#dcdcaa]">mulaiMenulis</span>() {"{"}
-              </p>
-              <p className="pl-4 md:pl-6">
-                <span className="text-[#c586c0]">const</span>{" "}
-                <span className="text-[#9cdcfe]">ide</span>{" "}
-                <span className="text-[#d4d4d4]">=</span>{" "}
-                <span className="text-[#ce9178]">
-                  &quot;Membangun aplikasi keren&quot;
-                </span>
-                ;
-              </p>
-              <p className="pl-4 md:pl-6">
-                <span className="text-[#4fc1ff]">simpanKeCloud</span>(
-                <span className="text-[#9cdcfe]">ide</span>);
-              </p>
-              <p className="pl-4 md:pl-6">
-                <span className="text-[#c586c0]">return</span>{" "}
-                <span className="text-[#4fc1ff]">sukses</span>;
-              </p>
-              <p>{"}"}</p>
-              <br />
-              <p className="animate-pulse">_</p>
+          {/* Konten Utama Aplikasi Dalam Mockup */}
+          <div className="p-5 text-left space-y-4 bg-[#0c0c0e] text-zinc-300 min-h-[380px] font-sans">
+            {/* Header Soal Eksperimen */}
+            <div className="rounded-2xl bg-zinc-900/80 p-4 border border-zinc-800">
+              <div className="text-[10px] uppercase tracking-wider text-blue-500 font-bold mb-1">
+                Misi Ujian Soal
+              </div>
+              <div className="text-base font-bold text-white">
+                Sederhanakan pecahan aljabar berikut:
+              </div>
+              <div className="my-2 bg-zinc-950 p-2 rounded-lg text-center text-sm text-amber-400 font-mono">
+                {"2x + 4 = 10"}
+              </div>
+            </div>
+
+            {/* Riwayat Langkah Berpikir (Thinking Trace Simulation) */}
+            <div className="space-y-2 text-xs">
+              <div className="flex items-start gap-2 rounded-xl bg-zinc-900/40 p-3 border border-zinc-800/60">
+                <FiCheckCircle
+                  className="text-emerald-500 mt-0.5 shrink-0"
+                  size={14}
+                />
+                <div>
+                  <span className="font-semibold text-zinc-400 block mb-0.5">
+                    Langkah 1
+                  </span>
+                  <code className="text-white font-mono">2x = 10 - 4</code>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2 rounded-xl bg-red-950/20 p-3 border border-red-900/40">
+                <FiAlertCircle
+                  className="text-rose-500 mt-0.5 shrink-0"
+                  size={14}
+                />
+                <div className="w-full">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-rose-400">
+                      Langkah 2 (Terdeteksi Miskonsepsi)
+                    </span>
+                  </div>
+                  <code className="text-white font-mono block my-1">
+                    x = 6 \times 2
+                  </code>
+                  <div className="text-[11px] text-zinc-400 mt-1 bg-zinc-950 p-2 rounded-md border border-zinc-900">
+                    💡{" "}
+                    <span className="text-rose-400 font-medium">
+                      Analisis Claude AI:
+                    </span>{" "}
+                    Anda melakukan kesalahan operasi. Seharusnya ruas kanan
+                    dibagi dengan 2, bukan dikali.
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </main>
 
-      {/* Dekorasi Footer */}
-      {/* PERBAIKAN: Ubah dari absolute menjadi posisi normal agar tidak menimpa mockup di HP */}
-      <footer className="w-full pb-6 pt-12 text-center text-[10px] md:text-[11px] text-[#505050]">
-        &copy; {new Date().getFullYear()} Note Workspace. Built for developers.
+      {/* Footer Minimalis */}
+      <footer className="w-full pb-8 pt-16 text-center text-[11px] text-zinc-600 border-t border-zinc-900/50 mt-10">
+        &copy; {new Date().getFullYear()} ThinkTrack AI. Menganalisis Proses
+        Kognitif & Pemecahan Masalah.
       </footer>
     </div>
   );

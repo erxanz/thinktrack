@@ -76,7 +76,7 @@ export default function LatihanSoalPage() {
         {steps.length > 0 && (
           <button
             onClick={handleSubmitKeAI}
-            className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl shadow-md active:scale-[0.98] transition">
+            className="w-full py-3 bg-linear-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl shadow-md active:scale-[0.98] transition">
             Kirim ke AI untuk Dianalisis
           </button>
         )}
