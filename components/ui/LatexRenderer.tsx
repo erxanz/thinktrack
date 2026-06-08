@@ -1,18 +1,14 @@
 "use client";
-
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
-import "katex/dist/katex.min.css"; // Wajib di-import agar CSS matematika berjalan
+import "katex/dist/katex.min.css";
 
 export default function LatexRenderer({ content }: { content: string }) {
-  // Kita membungkus content dengan $$ agar dianggap sebagai block matematika oleh KaTeX
-  const latexContent = `$$${content}$$`;
-
   return (
-    <div className="overflow-x-auto">
+    <div className="prose prose-invert prose-sm max-w-none">
       <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-        {latexContent}
+        {content}
       </ReactMarkdown>
     </div>
   );

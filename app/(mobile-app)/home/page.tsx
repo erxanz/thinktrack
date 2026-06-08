@@ -10,6 +10,7 @@ import {
   FiClock,
   FiActivity,
 } from "react-icons/fi";
+import CreateTopicButton from "@/components/topic/CreateTopicButton";
 
 export default async function WorkspaceHomePage() {
   const session = await getServerSession(authOptions);
@@ -40,9 +41,7 @@ export default async function WorkspaceHomePage() {
           </p>
         </div>
 
-        <button className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-lg shadow-blue-900/20">
-          <FiPlus size={16} /> Materi Baru
-        </button>
+        <CreateTopicButton />
       </div>
 
       {/* KARTU STATISTIK - Dibuat lebih ringkas */}
