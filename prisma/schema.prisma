@@ -69,7 +69,9 @@ model AISettings {
   id              String   @id @default(uuid())
   userId          String   @unique
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  anthropicApiKey String?  // Mengganti Grok karena dokumen menggunakan Claude API [cite: 24]
-  activeModel     String   @default("claude-3-sonnet")
+  
+  // Mengganti anthropicApiKey menjadi lebih umum agar bisa menyimpan key Gemini/Claude
+  apiKey          String?  
+  activeModel     String   @default("gemini-2.5-flash") // Default ke Gemini
   updatedAt       DateTime @updatedAt
 }
