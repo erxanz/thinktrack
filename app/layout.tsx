@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Modern Notes",
+  title: "Think Track AI",
   description: "Aplikasi catatan modern dengan",
 };
 
