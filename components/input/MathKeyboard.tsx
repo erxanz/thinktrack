@@ -3,72 +3,101 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
+import { FiCpu } from "react-icons/fi";
 
-export default function MathKeyboard({
-  onInput,
-}: {
+interface MathKeyboardProps {
   onInput: (latex: string) => void;
-}) {
-  // Kita menggunakan div biasa sebagai wadah (container)
+}
+
+export default function MathKeyboard({ onInput }: MathKeyboardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mathFieldRef = useRef<any>(null); // Menyimpan instance dari MathLive
+  const mathFieldRef = useRef<any>(null);
+
+  // Menyimpan callback terbaru tanpa memicu re-render MathLive
+  const onInputRef = useRef(onInput);
+
+  useEffect(() => {
+    onInputRef.current = onInput;
+  }, [onInput]);
 
   useEffect(() => {
     let isMounted = true;
 
-    // Load library mathlive secara dinamis (hanya di sisi client/browser)
     import("mathlive").then(({ MathfieldElement }) => {
-      // Pastikan komponen masih aktif dan container sudah siap
       if (!isMounted || !containerRef.current) return;
 
-      // Cegah duplikasi render ganda akibat React Strict Mode
-      if (!mathFieldRef.current) {
-        // Buat elemen <math-field> secara terprogram (bukan dari JSX)
-        const mfe = new MathfieldElement();
+      // Hindari membuat MathField dua kali
+      if (mathFieldRef.current) return;
 
-        // Atur styling langsung ke elemennya
-        mfe.style.width = "100%";
-        mfe.style.fontSize = "1.5rem";
-        mfe.style.padding = "12px";
-        mfe.style.borderRadius = "8px";
-        mfe.style.border = "1px solid #e2e8f0";
-        mfe.style.backgroundColor = "#ffffff";
+      const mfe = new MathfieldElement();
 
-        // Tambahkan event listener untuk menangkap ketikan siswa
-        mfe.addEventListener("input", (ev: Event) => {
-          const target = ev.target as any;
-          if (target && target.value !== undefined) {
-            onInput(target.value);
-          }
-        });
+      // Styling Dark Theme ThinkTrack
+      mfe.style.width = "100%";
+      mfe.style.minHeight = "70px";
+      mfe.style.fontSize = "1.5rem";
+      mfe.style.padding = "14px";
+      mfe.style.borderRadius = "16px";
+      mfe.style.background = "#18181b";
+      mfe.style.color = "#ffffff";
+      mfe.style.border = "1px solid rgba(59,130,246,0.2)";
+      mfe.style.boxShadow = "0 0 30px rgba(37,99,235,0.12)";
 
-        // Masukkan elemen ini ke dalam <div> container kita
-        containerRef.current.appendChild(mfe);
-        mathFieldRef.current = mfe;
-      }
+      // Event input
+      mfe.addEventListener("input", (ev: Event) => {
+        const target = ev.target as any;
+
+        if (target?.value !== undefined) {
+          onInputRef.current(target.value);
+        }
+      });
+
+      containerRef.current.appendChild(mfe);
+
+      mathFieldRef.current = mfe;
     });
 
-    // Cleanup function: Bersihkan elemen jika berpindah halaman
     return () => {
       isMounted = false;
-      if (mathFieldRef.current && containerRef.current) {
+
+      if (
+        mathFieldRef.current &&
+        containerRef.current?.contains(mathFieldRef.current)
+      ) {
         containerRef.current.removeChild(mathFieldRef.current);
+
         mathFieldRef.current = null;
       }
     };
-  }, [onInput]);
+  }, []); // ← WAJIB kosong supaya tidak recreate MathField
 
   return (
-    <div className="w-full bg-slate-50 p-4 rounded-t-2xl shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] fixed bottom-0 left-0 z-50">
-      <div className="mb-2 text-sm text-gray-500 font-medium">
-        Tulis langkah penyelesaianmu:
-      </div>
+    <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/5 bg-[#09090b]/95 backdrop-blur-xl">
+      <div className="max-w-4xl mx-auto p-4">
+        {/* Header */}
+        <div className="flex items-center gap-2 mb-3">
+          <FiCpu className="text-blue-400" />
 
-      {/* Ini hanyalah div kosong. Elemen math-field akan disuntikkan
-        secara otomatis ke dalam div ini oleh useEffect di atas.
-        Dengan ini, TypeScript tidak akan pernah protes lagi!
-      */}
-      <div ref={containerRef} className="w-full"></div>
+          <div>
+            <div className="text-sm font-semibold text-blue-400">
+              ThinkTrack Math Input
+            </div>
+
+            <div className="text-xs text-zinc-500">
+              Tulis langkah penyelesaian matematika
+            </div>
+          </div>
+        </div>
+
+        {/* Container MathLive */}
+        <div className="rounded-2xl border border-blue-500/20 bg-zinc-900/80 p-2 shadow-[0_0_30px_rgba(37,99,235,0.12)]">
+          <div ref={containerRef} />
+        </div>
+
+        {/* Footer */}
+        <div className="mt-3 text-[11px] text-zinc-500">
+          AI akan menganalisis setiap langkah yang Anda masukkan
+        </div>
+      </div>
     </div>
   );
 }
