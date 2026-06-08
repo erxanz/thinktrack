@@ -18,7 +18,7 @@ export default async function LandingPage() {
   return (
     <div className="relative flex min-h-screen flex-col items-center overflow-x-hidden bg-[#09090b] font-sans text-zinc-100 selection:bg-blue-600 selection:text-white">
       {/* Latar Belakang Glow Effect */}
-      <div className="absolute top-[-10%] left-1/2 -z-10 h-125 w-125 -translate-x-1/2 rounded-full bg-blue-600/20 blur-[120px] md:h-[600px] md:w-[800px]" />
+      <div className="absolute top-[-10%] left-1/2 -z-10 h-125 w-125 -translate-x-1/2 rounded-full bg-blue-600/20 blur-[120px] md:h-150 md:w-200" />
 
       {/* Navbar Atas */}
       <nav className="w-full max-w-7xl px-6 py-6 flex justify-between items-center z-50">
