@@ -109,13 +109,30 @@ export async function POST(req: Request) {
 
     // Untuk menghindari dependency ai-sdk provider tambahan yang belum dipasang,
     // gunakan endpoint /api/ai yang sudah teruji untuk semua provider.
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL || "";
-    if (!baseUrl) {
-      return NextResponse.json({ error: "NEXT_PUBLIC_APP_URL is not set" }, { status: 500 });
+    // Prefer URL internal agar tidak bergantung NEXT_PUBLIC_APP_URL/VERCEL_URL
+    // Di Next.js server route, kita bisa pakai request-origin bila ada.
+    const origin = req.headers.get("x-forwarded-proto")
+      ? `${req.headers.get("x-forwarded-proto")}://${req.headers.get("host")}`
+      : req.headers.get("host")
+        ? `http://${req.headers.get("host")}`
+        : null;
+
+    const fallbackBaseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL || "";
+
+    if (!origin && !fallbackBaseUrl) {
+      return NextResponse.json(
+        {
+          error: "Cannot resolve base URL for /api/ai",
+          hint: "Set NEXT_PUBLIC_APP_URL or ensure reverse proxy sends x-forwarded-proto + host",
+        },
+        { status: 500 }
+      );
     }
 
-    const aiResponse = await fetch(`${baseUrl}/api/ai`, {
+    const baseUrl = origin || fallbackBaseUrl;
+    const aiUrl = baseUrl.startsWith("http") ? `${baseUrl}/api/ai` : `https://${baseUrl}/api/ai`;
 
+    const aiResponse = await fetch(aiUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -128,7 +145,15 @@ export async function POST(req: Request) {
 
     if (!aiResponse.ok) {
       const err = await aiResponse.json().catch(() => null);
-      throw new Error(err?.error || "AI generation failed");
+      return NextResponse.json(
+        {
+          error: "AI generation failed",
+          status: aiResponse.status,
+          aiError: err?.error || null,
+          aiRaw: err || null,
+        },
+        { status: aiResponse.status || 500 }
+      );
     }
 
     const aiData = await aiResponse.json();
