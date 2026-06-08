@@ -1,156 +1,46 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/authOptions";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-const PROVIDER_DEFAULT_MODELS: Record<string, string> = {
-  gemini: "gemini-2.5-flash",
-  grok: "llama-3.3-70b-versatile",
-  groq: "llama-3.3-70b-versatile",
-};
+// GET: Mengambil setting saat halaman dimuat
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const userId = searchParams.get("userId");
 
-function resolveActiveProvider(settings: {
-  geminiApiKey?: string | null;
-  grokApiKey?: string | null;
-  activeProvider?: string | null;
-}) {
-  const providerHasKey = (provider: string) => {
-    switch (provider) {
-      case "gemini":
-        return Boolean(settings.geminiApiKey);
-      case "grok":
-      case "groq":
-        return Boolean(settings.grokApiKey);
-      default:
-        return false;
-    }
-  };
-
-  const requestedProvider = (settings.activeProvider || "gemini").toLowerCase();
-  if (providerHasKey(requestedProvider)) {
-    return requestedProvider;
+  if (!userId) {
+    return NextResponse.json({ error: "User ID diperlukan" }, { status: 400 });
   }
 
-  const fallbackProviders = ["groq", "grok", "gemini"];
-  return fallbackProviders.find(providerHasKey) || "gemini";
+  const settings = await prisma.aISettings.findUnique({
+    where: { userId },
+    include: { user: { select: { cognitiveMode: true } } },
+  });
+
+  return NextResponse.json(settings);
 }
 
-export async function GET() {
+// PATCH: Menyimpan perubahan
+export async function PATCH(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { userId, apiKey, activeModel, cognitiveMode } = await req.json();
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+    // Gunakan await langsung tanpa deklarasi const jika hasilnya tidak dipakai
+    await prisma.aISettings.upsert({
+      where: { userId },
+      update: { apiKey, activeModel },
+      create: { userId, apiKey, activeModel },
     });
 
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
+    await prisma.user.update({
+      where: { id: userId },
+      data: { cognitiveMode },
+    });
 
-    const aiSettings = (await prisma.aISettings.findUnique({
-      where: { userId: user.id },
-    })) || {
-      id: "",
-      userId: user.id,
-      geminiApiKey: null,
-      grokApiKey: null,
-      activeProvider: "gemini",
-      activeModel: "gemini-2.5-flash",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    return NextResponse.json(aiSettings);
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error fetching AI settings:", error);
+    console.error("Patch Settings Error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    const body = await request.json();
-    const {
-      geminiApiKey,
-      grokApiKey,
-      activeProvider,
-      activeModel,
-    } = body;
-
-    const existingSettings = await prisma.aISettings.findUnique({
-      where: { userId: user.id },
-    });
-
-    const mergedSettings = {
-      geminiApiKey:
-        geminiApiKey !== undefined ? geminiApiKey : existingSettings?.geminiApiKey,
-      grokApiKey:
-        grokApiKey !== undefined ? grokApiKey : existingSettings?.grokApiKey,
-      activeProvider: activeProvider !== undefined ? activeProvider : existingSettings?.activeProvider,
-      activeModel: activeModel !== undefined ? activeModel : existingSettings?.activeModel,
-    };
-
-    const resolvedActiveProvider = resolveActiveProvider(mergedSettings);
-    const resolvedActiveModel =
-      activeModel !== undefined && activeProvider === resolvedActiveProvider
-        ? activeModel
-        : PROVIDER_DEFAULT_MODELS[resolvedActiveProvider] || "gemini-2.5-flash";
-
-    const aiSettings = await prisma.aISettings.upsert({
-      where: { userId: user.id },
-      update: {
-        ...(geminiApiKey !== undefined && { geminiApiKey }),
-        ...(grokApiKey !== undefined && { grokApiKey }),
-        activeProvider: resolvedActiveProvider,
-        activeModel: resolvedActiveModel,
-      },
-      create: {
-        userId: user.id,
-        geminiApiKey: geminiApiKey || null,
-        grokApiKey: grokApiKey || null,
-        activeProvider: resolveActiveProvider({
-          geminiApiKey: geminiApiKey || null,
-          grokApiKey: grokApiKey || null,
-          activeProvider,
-        }),
-        activeModel:
-          PROVIDER_DEFAULT_MODELS[
-            resolveActiveProvider({
-              geminiApiKey: geminiApiKey || null,
-              grokApiKey: grokApiKey || null,
-              activeProvider,
-            })
-          ] || "gemini-2.5-flash",
-      },
-    });
-
-    return NextResponse.json(aiSettings);
-  } catch (error) {
-    console.error("Error updating AI settings:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
+      { error: "Gagal menyimpan pengaturan" },
+      { status: 500 },
     );
   }
 }
