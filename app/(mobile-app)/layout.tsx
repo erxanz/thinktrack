@@ -42,7 +42,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {/* SECTION BAWAH SIDEBAR */}
         <div className="mt-auto border-t border-white/5 pt-4 space-y-1">
           <Link
-            href="#"
+            href="/settings"
             className="flex items-center gap-3 px-3 py-2.5 text-zinc-400 hover:text-zinc-100 hover:bg-white/5 rounded-lg text-sm font-medium transition-all">
             <FiSettings size={16} /> Pengaturan
           </Link>
@@ -67,6 +67,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             className="flex flex-col items-center gap-0.5 text-zinc-500">
             <FiBookOpen size={18} />{" "}
             <span className="text-[9px] font-semibold">Materi</span>
+          </Link>
+          <Link
+            href="/settings"
+            className="flex flex-col items-center gap-0.5 text-zinc-500">
+            <FiSettings size={18} />{" "}
+            <span className="text-[9px] font-semibold">Settings</span>
           </Link>
           <Link
             href="#"

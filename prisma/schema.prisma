@@ -49,7 +49,9 @@ model Subtopic {
   content     String   @db.Text
   topic       Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
   traces      ThinkingTrace[]
+  exercises   Exercise[]
 }
+
 
 // 3. Model untuk menyimpan langkah pengerjaan (Thinking Trace) [cite: 16]
 model ThinkingTrace {
@@ -66,13 +68,26 @@ model ThinkingTrace {
   createdAt        DateTime @default(now())
 }
 
+model Exercise {
+  id           String   @id @default(uuid())
+  subtopicId   String
+  type         String
+  question     String   @db.Text
+  answer       String   @db.Text
+  explanation  String   @db.Text
+  createdAt    DateTime @default(now())
+
+  subtopic     Subtopic @relation(fields: [subtopicId], references: [id], onDelete: Cascade)
+}
+
 model AISettings {
   id              String   @id @default(uuid())
   userId          String   @unique
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  // Mengganti anthropicApiKey menjadi lebih umum agar bisa menyimpan key Gemini/Claude
-  apiKey          String?  
+  // legacy fields not used elsewhere, keep flexible for providers
+  apiKey          String?
   activeModel     String   @default("gemini-2.5-flash") // Default ke Gemini
   updatedAt       DateTime @updatedAt
 }
+

@@ -59,12 +59,18 @@ function normalizeGeminiModel(model: string) {
   return normalized;
 }
 
+function getProviderFromModel(model: string): string {
+  const m = (model || "").toLowerCase();
+  if (m.includes("gemini")) return "gemini";
+  if (m.includes("llama") || m.includes("grok") || m.includes("groq")) return "groq";
+  return "gemini";
+}
+
 function resolveProviderAndModel(
   requestedProvider: string,
   requestedModel: string,
   aiSettings: {
-    geminiApiKey: string | null;
-    grokApiKey: string | null;
+    apiKey: string | null;
   }
 ) {
   const provider = (requestedProvider || "").trim().toLowerCase();
@@ -72,10 +78,10 @@ function resolveProviderAndModel(
   const providerHasKey = (candidate: string) => {
     switch (candidate) {
       case "gemini":
-        return Boolean(aiSettings.geminiApiKey);
+        return Boolean(aiSettings.apiKey) || Boolean(process.env.GEMINI_API_KEY);
       case "grok":
       case "groq":
-        return Boolean(aiSettings.grokApiKey);
+        return Boolean(aiSettings.apiKey) || Boolean(process.env.GROQ_API_KEY);
       default:
         return false;
     }
@@ -83,7 +89,7 @@ function resolveProviderAndModel(
 
   const resolvedProvider = providerHasKey(provider)
     ? provider
-    : ["groq", "grok", "gemini"].find(providerHasKey) || provider;
+    : ["groq", "grok", "gemini"].find(providerHasKey) || provider || "gemini";
 
   const resolvedModel =
     resolvedProvider === provider
@@ -110,31 +116,38 @@ export async function POST(request: NextRequest) {
     }
 
     const body = (await request.json()) as AIRequest;
-    const { provider, model, prompt, instruction } = body;
+    let { provider, model, prompt, instruction } = body;
 
-    const aiSettings = await prisma.aISettings.findUnique({
+    let aiSettings = await prisma.aISettings.findUnique({
       where: { userId: user.id },
     });
     if (!aiSettings) {
-      return NextResponse.json(
-        { error: "AI settings not configured" },
-        { status: 400 }
-      );
+      aiSettings = await prisma.aISettings.create({
+        data: {
+          userId: user.id,
+          activeModel: "gemini-2.5-flash",
+        },
+      });
     }
+
+    if (!provider) {
+      provider = getProviderFromModel(model || aiSettings.activeModel);
+    }
+    const targetModel = model || aiSettings.activeModel;
 
     let apiKey: string | null = null;
     let response: any;
-    const resolved = resolveProviderAndModel(provider, model, aiSettings);
+    const resolved = resolveProviderAndModel(provider, targetModel, aiSettings);
 
     switch (resolved.provider) {
       case "gemini":
-        apiKey = aiSettings.geminiApiKey;
+        apiKey = aiSettings.apiKey || process.env.GEMINI_API_KEY || null;
         response = await callGemini(resolved.model, prompt, instruction, apiKey);
         break;
 
       case "grok":
       case "groq":
-        apiKey = aiSettings.grokApiKey;
+        apiKey = aiSettings.apiKey || process.env.GROQ_API_KEY || null;
         response = await callGroq(resolved.model, prompt, instruction, apiKey);
         break;
 

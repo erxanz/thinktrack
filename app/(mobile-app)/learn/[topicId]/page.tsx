@@ -1,19 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, use } from "react";
 import dynamic from "next/dynamic";
 import LatexRenderer from "@/components/ui/LatexRenderer";
 
 import {
-  FiPlus,
   FiAlertCircle,
   FiCheckCircle,
   FiTrash2,
-  FiCpu,
   FiBookOpen,
   FiEdit3,
   FiChevronRight,
+  FiLoader,
 } from "react-icons/fi";
+
 
 const MathKeyboard = dynamic(() => import("@/components/input/MathKeyboard"), {
   ssr: false,
@@ -25,38 +25,58 @@ interface AnalysisResult {
   errorStep?: number;
 }
 
-export default function LearnPage({ params }: { params: { topicId: string } }) {
+export default function LearnPage({ params }: { params: Promise<{ topicId: string }> }) {
+  const { topicId } = use(params);
   const [viewMode, setViewMode] = useState<"materi" | "latihan">("materi");
 
-  // DATA MATERI SEMENTARA
-  const roadmap = [
-    {
-      id: 1,
-      title: "Memahami Persamaan Linear",
-      content:
-        "Persamaan linear adalah persamaan yang memiliki pangkat tertinggi satu.",
-    },
-    {
-      id: 2,
-      title: "Operasi Aljabar Dasar",
-      content:
-        "Untuk menyelesaikan persamaan, lakukan operasi yang sama pada kedua ruas.",
-    },
-    {
-      id: 3,
-      title: "Menyelesaikan Persamaan Linear",
-      content: "Pindahkan konstanta ke ruas kanan dan sederhanakan variabel.",
-    },
-  ];
+  const [topicTitle, setTopicTitle] = useState<string>("");
+  const [subtopics, setSubtopics] = useState<Array<{ id: string; title: string; level: string; content: string }>>([]);
+  const [exercisesBySubtopic, setExercisesBySubtopic] = useState<Record<string, Array<{ id: string; type: string; question: string; answer: string; explanation: string }>>>({});
+  const [loadingData, setLoadingData] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoadingData(true);
+        const res = await fetch(`/api/topics/${topicId}`);
+        if (!res.ok) throw new Error("Gagal memuat topik");
+        const data = await res.json();
+        setTopicTitle(data?.topic?.title || "");
+        setSubtopics(data?.subtopics || []);
+        const map: typeof exercisesBySubtopic = {};
+        for (const st of data?.subtopics || []) {
+          map[st.id] = data?.exercisesBySubtopic?.[st.id] || [];
+        }
+        setExercisesBySubtopic(map);
+      } catch {
+        setTopicTitle("");
+        setSubtopics([]);
+        setExercisesBySubtopic({});
+      } finally {
+        setLoadingData(false);
+      }
+    };
+    load();
+  }, [topicId]);
+
 
   const [steps, setSteps] = useState<string[]>([]);
   const [currentInput, setCurrentInput] = useState("");
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const question = "2x + 4 = 10";
+  const firstSubtopicId = subtopics[0]?.id;
+  const firstExercise = firstSubtopicId
+    ? exercisesBySubtopic[firstSubtopicId]?.[0]
+    : undefined;
+
+  const question = firstExercise?.question || "";
+
+  // explanation belum dipakai di UI saat ini (bisa ditampilkan di future)
+  // const activeExerciseExplanation = firstExercise?.explanation || "";
 
   const sanitizeLatex = (latex: string) =>
+
     latex.replace(/\\placeholder\{\}/g, "□").replace(/\\placeholder/g, "□");
 
   const previewContent = sanitizeLatex(currentInput);
@@ -89,7 +109,7 @@ export default function LearnPage({ params }: { params: { topicId: string } }) {
         },
         body: JSON.stringify({
           steps,
-          topicId: params.topicId,
+          topicId,
           question,
         }),
       });
@@ -146,32 +166,36 @@ export default function LearnPage({ params }: { params: { topicId: string } }) {
       {viewMode === "materi" && (
         <div className="max-w-5xl mx-auto p-5">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold">
-              Persamaan Linear Satu Variabel
-            </h1>
+            <h1 className="text-3xl font-bold">{loadingData ? "Memuat..." : topicTitle || "Topik"}</h1>
 
-            <p className="text-zinc-400 mt-2">
-              Roadmap pembelajaran yang dibuat AI.
-            </p>
+            <p className="text-zinc-400 mt-2">Roadmap pembelajaran yang dibuat AI.</p>
           </div>
 
-          <div className="space-y-4">
-            {roadmap.map((item, index) => (
-              <div
-                key={item.id}
-                className="rounded-2xl border border-white/5 bg-zinc-900/50 p-5 hover:border-blue-500/30 transition">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold">
-                    {index + 1}. {item.title}
-                  </h3>
+          {loadingData ? (
+            <div className="rounded-2xl border border-white/5 bg-zinc-900/50 p-6 flex items-center gap-3 text-zinc-300">
+              <FiLoader className="animate-spin" />
+              Memuat materi...
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {subtopics.map((item, index) => (
+                <div
+                  key={item.id}
+                  className="rounded-2xl border border-white/5 bg-zinc-900/50 p-5 hover:border-blue-500/30 transition">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold">
+                      {index + 1}. {item.title}
+                    </h3>
 
-                  <FiChevronRight />
+                    <FiChevronRight />
+                  </div>
+
+                  <p className="text-sm text-zinc-400">{item.content}</p>
                 </div>
+              ))}
+            </div>
+          )}
 
-                <p className="text-sm text-zinc-400">{item.content}</p>
-              </div>
-            ))}
-          </div>
 
           <div className="mt-8 rounded-2xl border border-blue-500/20 bg-blue-950/20 p-5">
             <h3 className="font-semibold text-blue-400 mb-2">Rekomendasi AI</h3>
@@ -209,9 +233,17 @@ export default function LearnPage({ params }: { params: { topicId: string } }) {
                 <div className="text-center text-3xl">
                   <LatexRenderer content={question} />
                 </div>
+
+                {loadingData && (
+                  <div className="mt-4 flex items-center gap-2 justify-center text-zinc-400">
+                    <FiLoader className="animate-spin" />
+                    Memuat latihan...
+                  </div>
+                )}
               </div>
             </div>
           </div>
+
 
           {currentInput && (
             <div className="max-w-4xl mx-auto p-4">

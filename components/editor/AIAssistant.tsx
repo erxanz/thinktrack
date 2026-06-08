@@ -184,7 +184,7 @@ export default function AIAssistant({
         },
         signal: controller.signal,
         body: JSON.stringify({
-          provider: aiSettings.activeProvider,
+          provider: aiSettings.activeModel?.includes("gemini") ? "gemini" : "groq",
           model: aiSettings.activeModel,
           prompt: currentText,
           instruction: buildInstruction(selectedMode),

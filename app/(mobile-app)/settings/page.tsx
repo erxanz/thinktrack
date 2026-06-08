@@ -1,9 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { FiCpu, FiKey, FiSave, FiUser } from "react-icons/fi";
 
-export default function AISettingsPage({ userId }: { userId: string }) {
+export default function AISettingsPage() {
+  const { data: session, status } = useSession();
+  const userId = session?.user?.id;
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -14,6 +18,8 @@ export default function AISettingsPage({ userId }: { userId: string }) {
   });
 
   useEffect(() => {
+    if (status === "loading" || !userId) return;
+
     fetch(`/api/ai-settings?userId=${userId}`)
       .then((res) => res.json())
       .then((data) => {
@@ -25,14 +31,19 @@ export default function AISettingsPage({ userId }: { userId: string }) {
         }
 
         setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to load settings:", err);
+        setLoading(false);
       });
-  }, [userId]);
+  }, [userId, status]);
 
   const saveSettings = async () => {
+    if (!userId) return;
     try {
       setSaving(true);
 
-      await fetch("/api/ai-settings", {
+      const res = await fetch("/api/ai-settings", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -43,13 +54,20 @@ export default function AISettingsPage({ userId }: { userId: string }) {
         }),
       });
 
+      if (!res.ok) {
+        throw new Error("Gagal menyimpan");
+      }
+
       alert("Pengaturan berhasil disimpan");
+    } catch (err) {
+      console.error(err);
+      alert("Gagal menyimpan pengaturan");
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) {
+  if (status === "loading" || loading) {
     return (
       <div className="p-6">
         <div className="h-10 w-60 rounded bg-zinc-800 animate-pulse" />

@@ -11,7 +11,7 @@ export default function CreateTopicButton() {
     if (!title.trim()) return;
 
     try {
-      const response = await fetch("/api/topics", {
+      const response = await fetch("/api/topics/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -20,6 +20,7 @@ export default function CreateTopicButton() {
           title,
         }),
       });
+
 
       if (!response.ok) {
         throw new Error("Gagal membuat topik");
@@ -67,7 +68,7 @@ export default function CreateTopicButton() {
             <button
               onClick={handleSubmit}
               className="mt-4 w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-lg font-medium">
-              Buat Roadmap AI
+            Buat Materi + Latihan
             </button>
           </div>
         </div>
