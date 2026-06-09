@@ -10,6 +10,7 @@ import {
   FiClock,
   FiActivity,
 } from "react-icons/fi";
+import { FaGem } from "react-icons/fa"; // Tambahkan ikon permata
 import CreateTopicButton from "@/components/topic/CreateTopicButton";
 
 export default async function WorkspaceHomePage() {
@@ -86,11 +87,18 @@ export default async function WorkspaceHomePage() {
             {topics.map((topic) => (
               <Link
                 href={`/learn/${topic.id}`}
+                target="_blank" // Tambahkan ini agar terlempar ke tab page baru
+                rel="noopener noreferrer"
                 key={topic.id}
-                className="group block">
-                <div className="bg-zinc-900/40 border border-zinc-800 p-5 rounded-xl hover:border-blue-500/30 transition-all">
-                  {/* Perbaikan: Menggunakan gradient-to-r yang standar */}
-                  <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                className="group block transition-transform duration-300 hover:-translate-y-2"> {/* Tambahkan animasi terangkat di hover */}
+                
+                <div className="bg-zinc-900/40 border border-zinc-800 p-5 rounded-xl hover:border-blue-500/50 hover:shadow-[0_10px_25px_rgba(59,130,246,0.15)] transition-all">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+
+                  {/* Tambahan Ikon Permata */}
+                  <div className="text-blue-500 mb-4 drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]">
+                    <FaGem size={28} />
+                  </div>
 
                   <div className="flex justify-between items-start mb-3">
                     <h3 className="font-semibold text-white group-hover:text-blue-400 transition-colors">

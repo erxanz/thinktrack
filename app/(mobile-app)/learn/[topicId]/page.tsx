@@ -13,7 +13,8 @@ import {
   FiChevronRight,
   FiLoader,
 } from "react-icons/fi";
-
+import { FaGem } from "react-icons/fa"; // Ikon permata dari FontAwesome
+import Link from "next/link"; // Import Link dari Next.js
 
 const MathKeyboard = dynamic(() => import("@/components/input/MathKeyboard"), {
   ssr: false,
@@ -162,55 +163,121 @@ export default function LearnPage({ params }: { params: Promise<{ topicId: strin
         </div>
       </div>
 
-      {/* MODE MATERI */}
+{/* MODE MATERI */}
       {viewMode === "materi" && (
-        <div className="max-w-5xl mx-auto p-5">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold">{loadingData ? "Memuat..." : topicTitle || "Topik"}</h1>
+        <div className="max-w-6xl mx-auto p-5 mt-4 md:mt-8">
+          
+          {/* Mengubah 'items-start' menjadi 'items-center' agar Kotak Kiri pas di tengah-tengah tinggi daftar kanan */}
+          <div className="flex flex-col md:flex-row items-center relative gap-4 md:gap-0">
 
-            <p className="text-zinc-400 mt-2">Roadmap pembelajaran yang dibuat AI.</p>
-          </div>
+            {/* ==================================================== */}
+            {/* SISI KIRI: Kotak Judul Utama (Pas di Tengah)         */}
+            {/* ==================================================== */}
+            <div className="md:w-5/12 w-full relative z-20 md:pr-8 lg:pr-14 mb-6 md:mb-0">
+              <div className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl p-8 text-center shadow-xl shadow-black/40 relative">
+                {/* Aksen Gradasi */}
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-2xl" />
 
-          {loadingData ? (
-            <div className="rounded-2xl border border-white/5 bg-zinc-900/50 p-6 flex items-center gap-3 text-zinc-300">
-              <FiLoader className="animate-spin" />
-              Memuat materi...
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {subtopics.map((item, index) => (
-                <div
-                  key={item.id}
-                  className="rounded-2xl border border-white/5 bg-zinc-900/50 p-5 hover:border-blue-500/30 transition">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold">
-                      {index + 1}. {item.title}
-                    </h3>
-
-                    <FiChevronRight />
-                  </div>
-
-                  <p className="text-sm text-zinc-400">{item.content}</p>
+                {/* Ikon Permata Besar */}
+                <div className="mx-auto flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 mb-5 shadow-[0_0_15px_rgba(59,130,246,0.1)]">
+                  <FaGem size={26} className="animate-pulse" />
                 </div>
-              ))}
+
+                <span className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-full inline-block mb-3">
+                  Topik Pembelajaran
+                </span>
+
+                <h1 className="text-3xl lg:text-4xl font-extrabold text-white leading-tight">
+                  {loadingData ? "Memuat..." : topicTitle || "Topik"}
+                </h1>
+                
+                <p className="text-sm text-zinc-400 mt-4 leading-relaxed">
+                  Roadmap pembelajaran terstruktur yang di-dekomposisi khusus untukmu oleh AI.
+                </p>
+
+                {/* Garis Penghubung Horizontal ke Batang Utama Kanan */}
+                <div className="hidden md:block absolute top-1/2 -right-8 lg:-right-14 w-8 lg:w-14 h-0.5 bg-blue-500/40" />
+                {/* Titik Sambung */}
+                <div className="hidden md:block absolute top-1/2 -right-8 lg:-right-14 w-2 h-2 -mt-[3px] rounded-full bg-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.8)] z-30" />
+              </div>
             </div>
-          )}
 
+            {/* ==================================================== */}
+            {/* SISI KANAN: Hanya Daftar Materi (Sub Bab)            */}
+            {/* ==================================================== */}
+            <div className="md:w-7/12 w-full relative z-10 flex flex-col gap-4">
+              
+              {/* Garis Vertikal Hubungan (Hanya setinggi list materi) */}
+              <div className="hidden md:block absolute left-0 top-8 bottom-8 w-0.5 bg-gradient-to-b from-blue-500/10 via-blue-500/30 to-blue-500/10 -ml-[1px]" />
 
-          <div className="mt-8 rounded-2xl border border-blue-500/20 bg-blue-950/20 p-5">
-            <h3 className="font-semibold text-blue-400 mb-2">Rekomendasi AI</h3>
+              {/* Looping List Materi */}
+              {loadingData ? (
+                <div className="w-full rounded-2xl border border-white/5 bg-zinc-900/50 p-8 flex flex-col items-center justify-center gap-4 text-zinc-400 ml-0 md:ml-8 lg:ml-12">
+                  <FiLoader className="animate-spin text-blue-500" size={28} />
+                  Menyiapkan peta konsep...
+                </div>
+              ) : (
+                subtopics.map((item, index) => (
+                  <div key={item.id} className="relative group pl-0 md:pl-8 lg:pl-12">
+                    
+                    {/* Garis Cabang dari Batang Utama ke Card */}
+                    <div className="hidden md:block absolute top-1/2 left-0 w-8 lg:w-12 h-0.5 bg-blue-500/20 group-hover:bg-blue-500/60 transition-colors" />
+                    <div className="hidden md:block absolute top-1/2 left-0 w-1.5 h-1.5 -mt-[2.5px] -ml-[2px] rounded-full bg-zinc-700 group-hover:bg-blue-500 transition-colors" />
 
-            <p className="text-sm text-zinc-300">
-              Pelajari semua sub-materi terlebih dahulu sebelum masuk ke latihan
-              soal.
+                    {/* Card Materi */}
+                    <Link
+                      href={`/materi-detail/${item.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-4 rounded-2xl border border-white/5 bg-zinc-900/50 p-4 hover:-translate-y-1 hover:shadow-[0_8px_20px_rgba(59,130,246,0.1)] hover:border-blue-500/40 transition-all duration-300"
+                    >
+                      {/* Ikon Permata */}
+                      <div className="flex-shrink-0 flex items-center justify-center w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 group-hover:bg-blue-500/20 group-hover:scale-110 transition-all">
+                        <FaGem size={20} />
+                      </div>
+
+                      {/* Konten Judul & Deskripsi 1 Baris */}
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[10px] text-zinc-500 font-bold block mb-0.5 uppercase tracking-wider">
+                          Sub Bab {index + 1}
+                        </span>
+                        <h3 className="font-semibold text-white text-base group-hover:text-blue-400 transition-colors truncate">
+                          {item.title}
+                        </h3>
+                        <p className="text-sm text-zinc-400 truncate mt-0.5">
+                          {item.content}
+                        </p>
+                      </div>
+
+                      {/* Panah Kanan */}
+                      <div className="flex-shrink-0 text-zinc-600 group-hover:text-blue-400 transition-colors group-hover:translate-x-1 duration-300">
+                        <FiChevronRight size={20} />
+                      </div>
+                    </Link>
+                  </div>
+                ))
+              )}
+            </div>
+
+          </div> {/* Akhir dari flex kolom kiri-kanan */}
+
+          {/* ==================================================== */}
+          {/* BAGIAN BAWAH: Kotak Latihan Memanjang Penuh (w-full) */}
+          {/* ==================================================== */}
+          <div className="w-full bg-blue-950/20 border border-blue-500/20 rounded-2xl p-6 text-center shadow-lg shadow-blue-900/10 mt-8">
+            <h3 className="font-semibold text-blue-400 mb-2 flex items-center justify-center gap-2">
+              <FiAlertCircle /> Rekomendasi AI
+            </h3>
+            <p className="text-sm text-zinc-400 max-w-2xl mx-auto">
+              Selesaikan semua materi di atas secara berurutan, lalu klik tombol di bawah untuk mulai menguji pemahaman kognitif Anda melalui latihan soal interaktif.
             </p>
-
             <button
               onClick={() => setViewMode("latihan")}
-              className="mt-4 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold hover:bg-blue-500">
-              Mulai Latihan
+              className="mt-5 w-full md:w-auto min-w-[240px] rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white hover:bg-blue-500 shadow-md shadow-blue-600/20 transition-all active:scale-95">
+              Mulai Latihan Soal
             </button>
           </div>
+
         </div>
       )}
 
