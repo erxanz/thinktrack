@@ -18,32 +18,31 @@ Judul materi/topik: ${title}
 
 Tugas:
 1) Buat dekomposisi sub-bab sebanyak ${numSubtopics}.
-2) Untuk setiap sub-bab, buat latihan soal sebanyak ${numExercisesPerSubtopic}.
+2) Untuk SETIAP sub-bab, buat materi penjelasannya SECARA DETAIL DAN KOMPREHENSIF (panjang) di dalam atribut "content".
+3) Untuk setiap sub-bab, buat latihan soal sebanyak ${numExercisesPerSubtopic}.
 
-Aturan penting:
-- Output WAJIB JSON valid (tanpa markdown codeblock).
-- Bahasa menyesuaikan cognitiveMode.
-- Sub-bab harus saling berurutan (roadmap mini).
-- Latihan berupa soal yang jelas dan dapat dikerjakan.
-- Setiap latihan harus punya: type, question, answer, explanation.
+Aturan KHUSUS JSON:
+- Output WAJIB JSON valid tanpa awalan/akhiran text apapun (jangan pakai markdown \`\`\`json).
+- Dalam atribut "content", kamu WAJIB memberikan materi yang mencakup pendahuluan, rumus, dan contoh.
+- PENTING: Karena "content" ada di dalam JSON, JANGAN menekan enter secara langsung. Gunakan "\\n" untuk baris baru.
+- JANGAN gunakan kutip ganda (") di dalam teks penjelasan, gunakan kutip tunggal (') agar JSON tidak rusak.
 
 Skema JSON:
 {
   "subtopics": [
     {
-      "title": string,
+      "title": "Nama Sub-bab",
       "level": "Mudah" | "Menengah" | "Sulit",
-      "content": string,
+      "content": "Isi materi yang SANGAT PANJANG, detail, dan komprehensif menggunakan format Markdown. Gunakan \\n\\n untuk memisahkan paragraf atau membuat sub-judul (contoh: ### Definisi\\n\\nIni adalah definisinya...).",
       "exercises": [
         {
-          "type": string,
-          "question": string,
-          "answer": string,
-          "explanation": string
+          "type": "pilihan ganda",
+          "question": "Pertanyaan soal...",
+          "answer": "Jawaban soal...",
+          "explanation": "Penjelasan langkah-langkah..."
         }
       ]
     }
   ]
 }
 `;
-

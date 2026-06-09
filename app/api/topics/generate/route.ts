@@ -169,6 +169,10 @@ export async function POST(req: Request) {
       throw new Error("AI returned empty response");
     }
 
+    // --- TAMBAHKAN BARIS INI UNTUK DEBUGGING ---
+    console.log("=== RAW AI OUTPUT ===");
+    console.log(rawText);
+    console.log("=====================");
 
     // parse JSON safely
     const parsed = (() => {
