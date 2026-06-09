@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
@@ -38,7 +39,7 @@ function normalizeGeminiModel(model: string) {
   }
 
   if (normalized.includes("3-flash")) {
-    return "gemini-3-flash";
+    return "gemini-2.5-flash";
   }
 
   return normalized;
@@ -64,12 +65,12 @@ function resolveProviderAndModel(
   const providerHasKey = (candidate: string) => {
     switch (candidate) {
       case "gemini":
-        return (
-          Boolean(aiSettings.apiKey) || Boolean(process.env.GEMINI_API_KEY)
-        );
-      case "grok":
+        return Boolean(aiSettings.apiKey || process.env.GEMINI_API_KEY);
+
       case "groq":
-        return Boolean(aiSettings.apiKey) || Boolean(process.env.GROQ_API_KEY);
+      case "grok":
+        return Boolean(process.env.GROQ_API_KEY);
+
       default:
         return false;
     }
@@ -77,14 +78,17 @@ function resolveProviderAndModel(
 
   const resolvedProvider = providerHasKey(provider)
     ? provider
-    : ["groq", "grok", "gemini"].find(providerHasKey) || provider || "gemini";
+    : ["gemini", "groq"].find(providerHasKey) || "gemini";
 
   const resolvedModel =
     resolvedProvider === provider
       ? requestedModel
-      : PROVIDER_DEFAULT_MODELS[resolvedProvider] || requestedModel;
+      : PROVIDER_DEFAULT_MODELS[resolvedProvider];
 
-  return { provider: resolvedProvider, model: resolvedModel };
+  return {
+    provider: resolvedProvider,
+    model: resolvedModel,
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -135,25 +139,65 @@ export async function POST(request: NextRequest) {
 
     switch (resolved.provider) {
       case "gemini":
-        apiKey = aiSettings.apiKey || process.env.GEMINI_API_KEY || null;
-        response = await callGemini(
+        try {
+          apiKey = aiSettings.apiKey || process.env.GEMINI_API_KEY || null;
+
+          response = await callGemini(
+            resolved.model,
+            prompt,
+            instruction,
+            apiKey,
+          );
+
+          if (!response?.text?.trim()) {
+            throw new Error("Gemini returned empty response");
+          }
+        } catch (geminiError) {
+          console.error("Gemini failed, fallback to Groq:", geminiError);
+
+          const groqKey = process.env.GROQ_API_KEY || null;
+
+          if (!groqKey) {
+            throw new Error("Gemini failed and GROQ_API_KEY not configured");
+          }
+
+          response = await callGroq(
+            "llama-3.3-70b-versatile",
+            prompt,
+            instruction,
+            groqKey,
+          );
+
+          if (!response?.text?.trim()) {
+            throw new Error("Groq returned empty response");
+          }
+        }
+
+        break;
+
+      case "groq":
+      case "grok":
+        response = await callGroq(
           resolved.model,
           prompt,
           instruction,
-          apiKey,
+          process.env.GROQ_API_KEY || null,
         );
-        break;
 
-      case "grok":
-      case "groq":
-        apiKey = aiSettings.apiKey || process.env.GROQ_API_KEY || null;
-        response = await callGroq(resolved.model, prompt, instruction, apiKey);
+        if (!response?.text?.trim()) {
+          throw new Error("Groq returned empty response");
+        }
+
         break;
 
       default:
         return NextResponse.json(
-          { error: "Unsupported provider" },
-          { status: 400 },
+          {
+            error: `Unsupported provider: ${resolved.provider}`,
+          },
+          {
+            status: 400,
+          },
         );
     }
 
@@ -240,14 +284,60 @@ async function callGroq(
   instruction: string | undefined,
   apiKey: string | null,
 ) {
-  if (!apiKey) throw new Error("Groq API key not configured");
+  if (!apiKey) {
+    throw new Error("Groq API key not configured");
+  }
 
-  const groq = createGroq({ apiKey });
-  const result = await generateText({
-    model: groq(model),
-    prompt,
-    ...(instruction ? { system: instruction } : {}),
-  });
+  const response = await fetch(
+    "https://api.groq.com/openai/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.7,
+        messages: [
+          ...(instruction
+            ? [
+                {
+                  role: "system",
+                  content: instruction,
+                },
+              ]
+            : []),
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      }),
+    },
+  );
 
-  return { provider: "groq", model, text: result.text || "No response" };
+  const data = await response.json();
+
+  console.log("=== GROQ RESPONSE ===");
+  console.log(JSON.stringify(data, null, 2));
+  console.log("=====================");
+
+  if (!response.ok) {
+    throw new Error(
+      data?.error?.message || `Groq API Error (${response.status})`,
+    );
+  }
+
+  const text = data?.choices?.[0]?.message?.content ?? "";
+
+  if (!text.trim()) {
+    throw new Error("Groq returned empty content");
+  }
+
+  return {
+    provider: "groq",
+    model,
+    text,
+  };
 }
