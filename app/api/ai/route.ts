@@ -14,7 +14,7 @@ interface AIRequest {
 }
 
 const PROVIDER_DEFAULT_MODELS: Record<string, string> = {
-  gemini: "gemini-2.5-flash",
+  gemini: "gemini-2.5-flash", // <-- Menggunakan 2.5-flash sebagai default
   grok: "llama-3.3-70b-versatile",
   groq: "llama-3.3-70b-versatile",
 };
@@ -22,38 +22,23 @@ const PROVIDER_DEFAULT_MODELS: Record<string, string> = {
 function normalizeGeminiModel(model: string) {
   let normalized = (model || "").trim().toLowerCase();
 
-  // Accept both raw model ids (gemini-1.5-pro) and API names (models/gemini-1.5-pro).
+  // Bersihkan awalan models/ jika ada
   if (normalized.startsWith("models/")) {
     normalized = normalized.replace("models/", "");
   }
 
+  // Jika kosong atau memakai nama lama, paksa ke 2.5-flash
   if (!normalized || normalized === "gemini-pro") {
     return "gemini-2.5-flash";
   }
 
-  if (normalized === "gemini-1.0-pro") {
-    return "gemini-1.5-pro-latest";
-  }
-
-  if (normalized === "gemini-1.5-pro" || normalized === "gemini 1.5 pro") {
-    return "gemini-1.5-pro-latest";
-  }
-
-  if (normalized === "gemini-1.5-flash" || normalized === "gemini 1.5 flash") {
-    return "gemini-1.5-flash-latest";
-  }
-
-  if (
-    normalized === "gemini 3.1 flash-lite" ||
-    normalized === "gemini-3.1-flash-lite" ||
-    normalized === "3.1 flash-lite" ||
-    normalized === "flash-lite"
-  ) {
-    return "gemini-2.5-flash";
-  }
-
+  // Normalisasi penulisan spasi ke strip
   if (normalized === "gemini 2.5 flash") {
     return "gemini-2.5-flash";
+  }
+
+  if (normalized.includes("1.5-pro")) {
+    return "gemini-1.5-pro";
   }
 
   return normalized;
@@ -62,7 +47,8 @@ function normalizeGeminiModel(model: string) {
 function getProviderFromModel(model: string): string {
   const m = (model || "").toLowerCase();
   if (m.includes("gemini")) return "gemini";
-  if (m.includes("llama") || m.includes("grok") || m.includes("groq")) return "groq";
+  if (m.includes("llama") || m.includes("grok") || m.includes("groq"))
+    return "groq";
   return "gemini";
 }
 
@@ -71,14 +57,16 @@ function resolveProviderAndModel(
   requestedModel: string,
   aiSettings: {
     apiKey: string | null;
-  }
+  },
 ) {
   const provider = (requestedProvider || "").trim().toLowerCase();
 
   const providerHasKey = (candidate: string) => {
     switch (candidate) {
       case "gemini":
-        return Boolean(aiSettings.apiKey) || Boolean(process.env.GEMINI_API_KEY);
+        return (
+          Boolean(aiSettings.apiKey) || Boolean(process.env.GEMINI_API_KEY)
+        );
       case "grok":
       case "groq":
         return Boolean(aiSettings.apiKey) || Boolean(process.env.GROQ_API_KEY);
@@ -102,7 +90,7 @@ function resolveProviderAndModel(
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -116,16 +104,18 @@ export async function POST(request: NextRequest) {
     }
 
     const body = (await request.json()) as AIRequest;
-    let { provider, model, prompt, instruction } = body;
+    const { model, prompt, instruction } = body; // Pakai const untuk yang tidak berubah
+    let { provider } = body; // Pakai let khusus untuk provider karena nilainya bisa ditimpa
 
     let aiSettings = await prisma.aISettings.findUnique({
       where: { userId: user.id },
     });
+
     if (!aiSettings) {
       aiSettings = await prisma.aISettings.create({
         data: {
           userId: user.id,
-          activeModel: "gemini-2.5-flash",
+          activeModel: "gemini-2.5-flash", // Menyimpan 2.5-flash ke database jika belum ada
         },
       });
     }
@@ -142,7 +132,12 @@ export async function POST(request: NextRequest) {
     switch (resolved.provider) {
       case "gemini":
         apiKey = aiSettings.apiKey || process.env.GEMINI_API_KEY || null;
-        response = await callGemini(resolved.model, prompt, instruction, apiKey);
+        response = await callGemini(
+          resolved.model,
+          prompt,
+          instruction,
+          apiKey,
+        );
         break;
 
       case "grok":
@@ -154,7 +149,7 @@ export async function POST(request: NextRequest) {
       default:
         return NextResponse.json(
           { error: "Unsupported provider" },
-          { status: 400 }
+          { status: 400 },
         );
     }
 
@@ -163,7 +158,7 @@ export async function POST(request: NextRequest) {
     console.error("Error calling AI provider:", error);
     return NextResponse.json(
       { error: error.message || "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -172,73 +167,49 @@ async function callGemini(
   model: string,
   prompt: string,
   instruction: string | undefined,
-  apiKey: string | null
+  apiKey: string | null,
 ) {
   if (!apiKey) throw new Error("Gemini API key not configured");
 
-  const fullPrompt = instruction ? `${instruction}\n\n${prompt}` : prompt;
-
   const requestedModel = normalizeGeminiModel(model);
+
+  // Daftar fallback yang dipersingkat. Jika 2.5-flash gagal, ia akan otomatis mundur ke 1.5-flash
   const fallbackCandidates = [
     requestedModel,
     "gemini-2.5-flash",
-    "gemini-2.0-flash",
-    "gemini-1.5-flash-latest",
-    "gemini-1.5-pro-latest",
     "gemini-1.5-flash",
-    "gemini-1.5-pro",
   ].filter((value, index, arr) => value && arr.indexOf(value) === index);
 
+  // Coba v1beta terlebih dahulu karena gemini-2.5-flash biasanya tersedia di versi beta
   const apiVersions = ["v1beta", "v1"];
-
   let lastError = "";
+
+  // Deteksi apakah user butuh output JSON
+  const isJsonExpected = (prompt + (instruction || ""))
+    .toLowerCase()
+    .includes("json");
 
   for (const apiVersion of apiVersions) {
     for (const candidate of fallbackCandidates) {
+      const payload: any = {
+        contents: [{ parts: [{ text: prompt }] }],
+      };
+
+      if (instruction) {
+        payload.systemInstruction = { parts: [{ text: instruction }] };
+      }
+
+      if (isJsonExpected) {
+        payload.generationConfig = { responseMimeType: "application/json" };
+      }
+
       const response = await fetch(
         `https://generativelanguage.googleapis.com/${apiVersion}/models/${candidate}:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: fullPrompt }] }],
-          }),
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        const text =
-          data.candidates?.[0]?.content?.parts?.[0]?.text || "No response";
-
-        return { provider: "gemini", model: candidate, text };
-      }
-
-      const errorPayload = await response.text();
-      lastError = `${response.status} ${response.statusText}${
-        errorPayload ? ` - ${errorPayload}` : ""
-      }`;
-    }
-  }
-
-  // If preferred aliases fail, discover allowed models for this API key and retry.
-  const availableModels = await listAvailableGeminiModels(apiKey);
-  if (availableModels.length > 0) {
-    const discoveredCandidates = [
-      ...fallbackCandidates.filter((candidate) => availableModels.includes(candidate)),
-      ...availableModels,
-    ].filter((value, index, arr) => value && arr.indexOf(value) === index);
-
-    for (const candidate of discoveredCandidates) {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${candidate}:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: fullPrompt }] }],
-          }),
-        }
+          body: JSON.stringify(payload),
+        },
       );
 
       if (response.ok) {
@@ -259,36 +230,11 @@ async function callGemini(
   throw new Error(`Gemini API error: ${lastError || "Unknown error"}`);
 }
 
-async function listAvailableGeminiModels(apiKey: string) {
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
-    );
-
-    if (!response.ok) {
-      return [];
-    }
-
-    const data = await response.json();
-    const models = Array.isArray(data.models) ? data.models : [];
-
-    return models
-      .filter((item: any) =>
-        Array.isArray(item?.supportedGenerationMethods) &&
-        item.supportedGenerationMethods.includes("generateContent")
-      )
-      .map((item: any) => String(item?.name || "").replace(/^models\//, ""))
-      .filter(Boolean);
-  } catch {
-    return [];
-  }
-}
-
 async function callGroq(
   model: string,
   prompt: string,
   instruction: string | undefined,
-  apiKey: string | null
+  apiKey: string | null,
 ) {
   if (!apiKey) throw new Error("Groq API key not configured");
 
