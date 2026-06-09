@@ -2,8 +2,14 @@
 "use client";
 
 import { useEffect, useState, use, useRef } from "react";
-import { FiBookOpen, FiArrowLeft, FiLoader, FiClock, FiSend, FiUser, FiCpu } from "react-icons/fi";
+import { FiBookOpen, FiArrowLeft, FiLoader, FiClock, FiSend, FiUser, FiCpu, FiCheckCircle, FiArrowRight } from "react-icons/fi";
 import { FaGem } from "react-icons/fa";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
+import Link from "next/link";
 
 interface SubtopicData {
   title: string;
@@ -27,19 +33,15 @@ export default function MateriDetailPage({ params }: { params: Promise<{ subtopi
   const [input, setInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   
-  // Referensi DOM untuk auto-scroll ke riwayat pesan terbawah
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // useEffect untuk mengambil data detail materi
   useEffect(() => {
     const fetchMateriDetail = async () => {
       try {
         setLoading(true);
         setErrorMsg(null);
         
-        // Memanggil API khusus untuk 1 sub-bab yang aktif
         const res = await fetch(`/api/subtopics/${subtopicId}`);
-        
         if (!res.ok) throw new Error("Materi tidak ditemukan atau rute API belum dibuat");
         
         const data = await res.json();
@@ -54,33 +56,50 @@ export default function MateriDetailPage({ params }: { params: Promise<{ subtopi
     fetchMateriDetail();
   }, [subtopicId]);
 
-  // useEffect untuk menggulir otomatis (auto-scroll) layar ke bawah saat ada pesan baru
   useEffect(() => {
     if (messages.length > 0 || chatLoading) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
     }
   }, [messages, chatLoading]);
 
-  // Fungsi untuk mengirim pertanyaan ke endpoint /api/ai
+  // ====================================================================
+  // ADVANCED MATH EXTRACTOR (OTOMATIS MEMISAHKAN RUMUS ANGKA & ALJABAR)
+  // ====================================================================
+  const preprocessMateriContent = (text: string) => {
+    if (!text) return "";
+
+    // Regex super cerdas: Mendeteksi persamaan angka (2 + 3 = 3 + 2) maupun fungsi aljabar f(x) = ...
+    // Mengabaikan kata-kata panjang teks bahasa Indonesia agar paragraf penjelasan tidak rusak.
+    const mathEquationRegex = /(?:(?:\(?\b[a-zA-Z]{1,2}\b(?:\([a-zA-Z]\))?|\d+|\.\.\.|\bdots\b)[\s\+\-\*\/\^\(\)]*)+\s*=\s*(?:[\s\+\-\*\/\^\(\)]*(?:\b[a-zA-Z]{1,2}\b(?:\([a-zA-Z]\))?|\d+|\.\.\.|\bdots\b)\s*)+/gi;
+
+    let processed = text.replace(mathEquationRegex, (match) => {
+      // Bersihkan spasi di ujung dan rapikan tanda titik tiga menjadi dot LaTeX (\dots)
+      let cleanFormula = match.trim().replace(/\.\.\./g, "\\dots");
+      
+      // Memaksa enter ganda (\n\n) dan membungkus rumus dengan $$ agar otomatis membuat kotak blok lebar terpisah
+      return `\n\n$$\n${cleanFormula}\n$$\n\n`;
+    });
+
+    return processed;
+  };
+
   const handleSend = async () => {
     if (!input.trim() || chatLoading || !materi) return;
 
     const userMessage = input.trim();
     setInput("");
     
-    // Tambah pertanyaan pengguna ke list percakapan
     setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
     setChatLoading(true);
 
     try {
-      // Menyusun instruksi sistem kontekstual agar AI menjawab berbasis isi konten materi
       const instruction = `Anda adalah asisten tutor AI yang ramah dari ThinkTrack EdTech. 
 Tugas Anda adalah menjawab pertanyaan user berdasarkan materi berjudul "${materi.title}".
 Berikut adalah isi materinya:
 ---
 ${materi.content}
 ---
-Jawablah pertanyaan user dengan jelas, ringkas, dan menggunakan markdown/bahasa yang mudah dipahami. Jika pertanyaan sama sekali tidak relevan dengan materi, jawablah secara umum dengan tetap sopan.`;
+Jawablah dengan jelas, ringkas, dan informatif. WAJIB selalu gunakan format blok LaTeX ganda ($$) untuk menuliskan contoh hitungan angka atau rumus persamaan agar tampil rapi dalam kotak terpisah pada layar pengguna.`;
 
       const response = await fetch("/api/ai", {
         method: "POST",
@@ -96,8 +115,6 @@ Jawablah pertanyaan user dengan jelas, ringkas, dan menggunakan markdown/bahasa 
       if (!response.ok) throw new Error("Gagal mengambil respon AI");
 
       const data = await response.json();
-      
-      // Tambah jawaban AI ke list percakapan
       setMessages((prev) => [...prev, { role: "ai", content: data.text }]);
     } catch (error) {
       setMessages((prev) => [
@@ -109,7 +126,6 @@ Jawablah pertanyaan user dengan jelas, ringkas, dan menggunakan markdown/bahasa 
     }
   };
 
-  // Tampilan Utama saat Loading Materi
   if (loading) {
     return (
       <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col items-center justify-center gap-4">
@@ -119,7 +135,6 @@ Jawablah pertanyaan user dengan jelas, ringkas, dan menggunakan markdown/bahasa 
     );
   }
 
-  // Tampilan Utama saat Terjadi Error
   if (errorMsg) {
     return (
       <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col items-center justify-center gap-4">
@@ -130,6 +145,9 @@ Jawablah pertanyaan user dengan jelas, ringkas, dan menggunakan markdown/bahasa 
       </div>
     );
   }
+
+  // Mengubah plain text materi menjadi format terstruktur kaya matematika
+  const processedContent = preprocessMateriContent(materi?.content || "");
 
   return (
     <div className="min-h-screen bg-[#09090b] text-zinc-100">
@@ -150,7 +168,6 @@ Jawablah pertanyaan user dengan jelas, ringkas, dan menggunakan markdown/bahasa 
       </div>
 
       {/* MAIN CONTENT AREA */}
-      {/* pb-36 memberikan area kosong di bawah agar isi percakapan tidak tertutup bar chat statis */}
       <div className="max-w-3xl mx-auto px-5 mt-10 pb-36">
         
         {/* Header Materi */}
@@ -174,12 +191,47 @@ Jawablah pertanyaan user dengan jelas, ringkas, dan menggunakan markdown/bahasa 
           </div>
         </div>
 
-        {/* Isi Penjelasan Lanjutan Materi */}
-        <div className="prose prose-invert max-w-none text-zinc-300 text-base md:text-lg leading-relaxed whitespace-pre-line bg-zinc-900/20 border border-white/5 rounded-2xl p-6 md:p-8 shadow-inner">
-          {materi?.content}
+        {/* AREA ISI MATERI DENGAN BLOCK KOTAK RUMUS SUPER EKSTETIK */}
+        <div className="prose prose-invert max-w-none text-zinc-300 text-base md:text-lg leading-relaxed bg-zinc-900/20 border border-white/5 rounded-2xl p-6 md:p-8 shadow-inner
+          [&_.katex-display]:bg-purple-500/10 
+          [&_.katex-display]:border 
+          [&_.katex-display]:border-purple-500/20 
+          [&_.katex-display]:px-6
+          [&_.katex-display]:py-5 
+          [&_.katex-display]:rounded-2xl 
+          [&_.katex-display]:my-6
+          [&_.katex-display]:text-purple-300
+          [&_.katex-display]:font-bold
+          [&_.katex-display]:overflow-x-auto 
+          [&_.katex-display]:shadow-[0_0_25px_rgba(168,85,247,0.06)]
+          [&_p]:mb-5">
+          <ReactMarkdown 
+            remarkPlugins={[remarkGfm, remarkMath]} 
+            rehypePlugins={[rehypeKatex]}
+          >
+            {processedContent}
+          </ReactMarkdown>
         </div>
 
-        {/* --- AREA RIWAYAT TANYA JAWAB (Mengalir dinamis di bawah materi) --- */}
+        {/* --- SECTION BARU: CALL TO ACTION LATIHAN --- */}
+        <div className="mt-12 mb-8 p-8 rounded-3xl bg-gradient-to-br from-blue-600/20 to-purple-600/20 border border-white/10 text-center">
+           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-500/20 text-blue-400 mb-4">
+              <FiCheckCircle size={32} />
+           </div>
+           <h3 className="text-xl font-bold text-white mb-2">Materi Selesai Dibaca!</h3>
+           <p className="text-zinc-400 text-sm mb-8">
+              Kamu sudah mempelajari "{materi?.title}". Sekarang, uji pemahamanmu dengan 5 soal latihan singkat.
+           </p>
+           
+           <Link 
+              href={`/exercise/${subtopicId}`}
+              className="inline-flex items-center gap-3 px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-lg shadow-blue-600/20"
+           >
+              Mulai Latihan Sekarang <FiArrowRight />
+           </Link>
+        </div>
+
+        {/* --- AREA RIWAYAT TANYA JAWAB (MENGALIR DI BAWAH MATERI) --- */}
         <div className="mt-12 border-t border-white/5 pt-8">
           {messages.length > 0 && (
             <div className="flex items-center gap-2 mb-6">
@@ -206,15 +258,21 @@ Jawablah pertanyaan user dengan jelas, ringkas, dan menggunakan markdown/bahasa 
                     </>
                   )}
                 </div>
-                <div className={`text-base leading-relaxed whitespace-pre-wrap ${
-                  msg.role === "user" ? "text-zinc-300" : "text-zinc-200"
-                }`}>
-                  {msg.content}
+                <div className="text-base leading-relaxed text-zinc-200 
+                  [&_.katex-display]:bg-zinc-950 
+                  [&_.katex-display]:border 
+                  [&_.katex-display]:border-white/5 
+                  [&_.katex-display]:p-4 
+                  [&_.katex-display]:rounded-xl 
+                  [&_.katex-display]:my-4 
+                  [&_.katex-display]:overflow-x-auto">
+                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
+                    {msg.content}
+                  </ReactMarkdown>
                 </div>
               </div>
             ))}
 
-            {/* Animasi Loading Pemrosesan Jawaban AI */}
             {chatLoading && (
               <div className="flex items-center gap-3 text-purple-400 text-sm animate-pulse py-4">
                 <FiLoader className="animate-spin" size={16} />
@@ -222,14 +280,13 @@ Jawablah pertanyaan user dengan jelas, ringkas, dan menggunakan markdown/bahasa 
               </div>
             )}
 
-            {/* Titik pembatas target penanda scroll otomatis */}
             <div ref={messagesEndRef} className="h-2" />
           </div>
         </div>
 
       </div>
 
-      {/* --- KOTAK INPUT CHAT STATIS (Fixed menempel di bagian bawah layar) --- */}
+      {/* --- KOTAK INPUT CHAT STATIS (Melayang di Bawah Layar) --- */}
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#09090b]/90 backdrop-blur-xl border-t border-white/10 px-4 py-4 md:py-6">
         <div className="max-w-3xl mx-auto relative">
           <div className="bg-[#141414] border border-white/10 rounded-2xl p-2 focus-within:border-purple-500/50 focus-within:ring-1 focus-within:ring-purple-500/20 transition-all shadow-lg">
@@ -238,7 +295,6 @@ Jawablah pertanyaan user dengan jelas, ringkas, dan menggunakan markdown/bahasa 
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
-                  // Kirim pesan ketika menekan 'Enter' tanpa kombinasi tombol 'Shift'
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     handleSend();

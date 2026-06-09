@@ -81,8 +81,8 @@ Jawablah pertanyaan user dengan jelas, ringkas, dan mudah dipahami. Jika pertany
         
         {messages.length > 0 && (
           <div className="flex items-center gap-2 mb-6">
-            <div className="h-1.5 w-1.5 rounded-full bg-purple-500 animate-pulse" />
-            <h3 className="text-xs font-bold tracking-wider text-purple-400 uppercase">
+            <div className="h-1.5 w-1.5 rounded-full bg-Blue-500 animate-pulse" />
+            <h3 className="text-xs font-bold tracking-wider text-Blue-400 uppercase">
               Sesi Tanya Jawab AI
             </h3>
           </div>
@@ -99,8 +99,8 @@ Jawablah pertanyaan user dengan jelas, ringkas, dan mudah dipahami. Jika pertany
                   </>
                 ) : (
                   <>
-                    <FiCpu className="text-purple-400" size={13} />
-                    <span className="text-purple-400">Tutor AI</span>
+                    <FiCpu className="text-Blue-400" size={13} />
+                    <span className="text-Blue-400">Tutor AI</span>
                   </>
                 )}
               </div>
@@ -114,7 +114,7 @@ Jawablah pertanyaan user dengan jelas, ringkas, dan mudah dipahami. Jika pertany
 
           {/* Animasi Loading AI */}
           {isLoading && (
-            <div className="flex items-center gap-3 text-purple-400 text-sm animate-pulse py-4">
+            <div className="flex items-center gap-3 text-Blue-400 text-sm animate-pulse py-4">
               <FiLoader className="animate-spin" size={16} />
               <span>AI sedang memikirkan jawaban...</span>
             </div>
@@ -128,7 +128,7 @@ Jawablah pertanyaan user dengan jelas, ringkas, dan mudah dipahami. Jika pertany
       {/* --- AREA INPUT CHAT (Statis / Fixed di Bawah Layar) --- */}
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#09090b]/90 backdrop-blur-xl border-t border-white/10 px-4 py-4 md:py-6">
         <div className="max-w-3xl mx-auto relative">
-          <div className="bg-[#141414] border border-white/10 rounded-2xl p-2 focus-within:border-purple-500/50 focus-within:ring-1 focus-within:ring-purple-500/20 transition-all shadow-lg">
+          <div className="bg-[#141414] border border-white/10 rounded-2xl p-2 focus-within:border-Blue-500/50 focus-within:ring-1 focus-within:ring-Blue-500/20 transition-all shadow-lg">
             <div className="flex gap-2 items-end">
               <textarea
                 value={input}
