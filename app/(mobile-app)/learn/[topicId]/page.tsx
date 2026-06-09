@@ -16,7 +16,6 @@ import {
 import { FaGem } from "react-icons/fa"; // Ikon permata dari FontAwesome
 import Link from "next/link"; // Import Link dari Next.js
 
-// semua 
 
 const MathKeyboard = dynamic(() => import("@/components/input/MathKeyboard"), {
   ssr: false,
