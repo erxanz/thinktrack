@@ -15,7 +15,7 @@ interface AIRequest {
 }
 
 const PROVIDER_DEFAULT_MODELS: Record<string, string> = {
-  gemini: "gemini-2.5-flash",
+  gemini: "gemini-3.1-flash-lite",
   grok: "llama-3.3-70b-versatile",
   groq: "llama-3.3-70b-versatile",
 };
@@ -30,16 +30,16 @@ function normalizeGeminiModel(model: string) {
 
   // Jika kosong atau memakai nama lama, paksa ke 2.5-flash
   if (!normalized || normalized === "gemini-pro") {
-    return "gemini-2.5-flash";
+    return "gemini-3.1-flash-lite";
   }
 
   // Normalisasi penulisan spasi ke strip
   if (normalized === "gemini 2.5 flash") {
-    return "gemini-2.5-flash";
+    return "gemini-3.1-flash-lite";
   }
 
   if (normalized.includes("3-flash")) {
-    return "gemini-2.5-flash";
+    return "gemini-3.1-flash-lite";
   }
 
   return normalized;
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
       aiSettings = await prisma.aISettings.create({
         data: {
           userId: user.id,
-          activeModel: "gemini-2.5-flash", // Menyimpan 2.5-flash ke database jika belum ada
+          activeModel: "gemini-3.1-flash-lite", // Menyimpan 2.5-flash ke database jika belum ada
         },
       });
     }

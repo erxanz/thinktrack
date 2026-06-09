@@ -26,7 +26,7 @@ export async function GET(req: Request) {
     settings = await prisma.aISettings.create({
       data: {
         userId,
-        activeModel: "gemini-2.5-flash",
+        activeModel: "gemini-3.1-flash-lite",
       },
       include: { user: { select: { cognitiveMode: true } } },
     });

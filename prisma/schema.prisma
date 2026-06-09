@@ -87,7 +87,7 @@ model AISettings {
   
   // legacy fields not used elsewhere, keep flexible for providers
   apiKey          String?
-  activeModel     String   @default("gemini-2.5-flash") // Default ke Gemini
+  activeModel     String   @default("gemini-3.1-flash-lite") // Default ke Gemini
   updatedAt       DateTime @updatedAt
 }
 

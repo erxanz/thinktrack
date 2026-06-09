@@ -12,7 +12,7 @@ export default function AISettingsPage() {
   const [saving, setSaving] = useState(false);
 
   const [config, setConfig] = useState({
-    activeModel: "gemini-2.5-flash",
+    activeModel: "gemini-3.1-flash-lite",
     cognitiveMode: "REMAJA",
     apiKey: "",
   });
@@ -143,7 +143,7 @@ export default function AISettingsPage() {
               })
             }
             className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none focus:border-purple-500">
-            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+            <option value="gemini-3.1-flash-lite">Gemini 2.5 Flash</option>
 
             <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
           </select>

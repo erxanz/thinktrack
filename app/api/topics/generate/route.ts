@@ -6,20 +6,20 @@ import { authOptions } from "@/lib/authOptions";
 import { getGenerateMateriPrompt } from "@/lib/ai-prompts/generate-materi-prompt";
 
 const PROVIDER_DEFAULT_MODELS: Record<string, string> = {
-  gemini: "gemini-2.5-flash", // Default menggunakan model gratis terbaru
+  gemini: "gemini-3.1-flash-lite", // Default menggunakan model gratis terbaru
   groq: "llama-3.3-70b-versatile",
   grok: "llama-3.3-70b-versatile",
 };
 
 function sanitizeModel(provider: string, model: string) {
   if (provider === "gemini") {
-    // Izinkan gemini-2.5-flash dan gemini-2.5-flash.
+    // Izinkan gemini-3.1-flash-lite dan gemini-3.1-flash-lite.
     // Jika user menggunakan model lama seperti gemini-pro, paksa pindah ke 3-flash.
     if (
-      !model.includes("gemini-2.5-flash") &&
-      !model.includes("gemini-2.5-flash")
+      !model.includes("gemini-3.1-flash-lite") &&
+      !model.includes("gemini-3.1-flash-lite")
     ) {
-      return "gemini-2.5-flash";
+      return "gemini-3.1-flash-lite";
     }
   }
 
@@ -102,7 +102,7 @@ export async function POST(req: Request) {
       aiSettings = await prisma.aISettings.create({
         data: {
           userId: session.user.id,
-          activeModel: "gemini-2.5-flash", // Default fallback pembuatan settings diset ke 3-flash
+          activeModel: "gemini-3.1-flash-lite", // Default fallback pembuatan settings diset ke 3-flash
         },
       });
     }
