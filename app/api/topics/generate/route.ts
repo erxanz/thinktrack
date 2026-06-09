@@ -132,9 +132,16 @@ export async function POST(req: Request) {
     const baseUrl = origin || fallbackBaseUrl;
     const aiUrl = baseUrl.startsWith("http") ? `${baseUrl}/api/ai` : `https://${baseUrl}/api/ai`;
 
+    // 1. Ambil cookie dari request awal pengguna
+    const cookieHeader = req.headers.get("cookie") || "";
+
+    // 2. Teruskan cookie tersebut ke endpoint /api/ai
     const aiResponse = await fetch(aiUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        "Cookie": cookieHeader // <--- Tambahkan baris ini
+      },
       body: JSON.stringify({
         provider,
         model,
