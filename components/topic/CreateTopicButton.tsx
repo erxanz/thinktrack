@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState } from "react";
@@ -24,25 +25,31 @@ export default function CreateTopicButton() {
       });
 
       if (!response.ok) {
-        let detail: unknown = null;
+        let detail: any = null;
 
         try {
           detail = await response.json();
         } catch {
-          // ignore
+          // ignore if not JSON
         }
 
-        const msg =
-          (typeof detail === "object" && detail !== null
-            ? (detail as { error?: string }).error
-            : undefined) ||
-          (typeof detail === "object" && detail !== null
-            ? (detail as { aiError?: string }).aiError
-            : undefined) ||
-          (typeof detail === "object" && detail !== null
-            ? (detail as { hint?: string }).hint
-            : undefined) ||
+        // Ambil pesan error dari backend
+        let msg =
+          detail?.error ||
+          detail?.aiError ||
+          detail?.hint ||
           "Gagal membuat topik";
+
+        // Filter khusus untuk error 503 / High Demand dari Gemini
+        if (
+          typeof msg === "string" &&
+          (msg.includes("503") ||
+            msg.includes("high demand") ||
+            msg.includes("UNAVAILABLE"))
+        ) {
+          msg =
+            "Server AI sedang sibuk (High Demand). Mohon tunggu beberapa saat dan coba lagi.";
+        }
 
         throw new Error(msg);
       }
@@ -51,7 +58,9 @@ export default function CreateTopicButton() {
       window.location.reload();
     } catch (error) {
       console.error(error);
-      alert(error instanceof Error ? error.message : "Gagal membuat topik");
+      alert(
+        error instanceof Error ? error.message : "Terjadi kesalahan sistem",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -62,8 +71,7 @@ export default function CreateTopicButton() {
       <button
         onClick={() => setIsOpen(true)}
         className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-lg shadow-blue-900/20"
-        disabled={isSubmitting}
-      >
+        disabled={isSubmitting}>
         <FiPlus size={16} />
         Materi Baru
       </button>
@@ -81,8 +89,7 @@ export default function CreateTopicButton() {
                   if (!isSubmitting) setIsOpen(false);
                 }}
                 className="text-zinc-400 hover:text-white disabled:opacity-60"
-                disabled={isSubmitting}
-              >
+                disabled={isSubmitting}>
                 <FiX />
               </button>
             </div>
@@ -99,8 +106,7 @@ export default function CreateTopicButton() {
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="mt-4 w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed"
-            >
+              className="mt-4 w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-lg font-medium disabled:opacity-60 disabled:cursor-not-allowed">
               {isSubmitting ? "Membuat..." : "Buat Materi + Latihan"}
             </button>
           </div>

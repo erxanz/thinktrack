@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     const prompt = getAnalysisPrompt(personaPrompt, steps);
 
     const model = genAI.getGenerativeModel({
-      model: user.aiSettings?.activeModel || "gemini-1.5-flash",
+      model: user.aiSettings?.activeModel || "gemini-2.5-flash",
     });
     const result = await model.generateContent(prompt);
 

@@ -14,7 +14,7 @@ interface AIRequest {
 }
 
 const PROVIDER_DEFAULT_MODELS: Record<string, string> = {
-  gemini: "gemini-2.5-flash", // <-- Menggunakan 2.5-flash sebagai default
+  gemini: "gemini-2.5-flash",
   grok: "llama-3.3-70b-versatile",
   groq: "llama-3.3-70b-versatile",
 };
@@ -37,8 +37,8 @@ function normalizeGeminiModel(model: string) {
     return "gemini-2.5-flash";
   }
 
-  if (normalized.includes("1.5-pro")) {
-    return "gemini-1.5-pro";
+  if (normalized.includes("3-flash")) {
+    return "gemini-3-flash";
   }
 
   return normalized;
@@ -127,7 +127,11 @@ export async function POST(request: NextRequest) {
 
     let apiKey: string | null = null;
     let response: any;
-    const resolved = resolveProviderAndModel(provider, targetModel, aiSettings);
+    const resolved = resolveProviderAndModel(
+      provider,
+      normalizeGeminiModel(targetModel),
+      aiSettings,
+    );
 
     switch (resolved.provider) {
       case "gemini":
@@ -169,65 +173,65 @@ async function callGemini(
   instruction: string | undefined,
   apiKey: string | null,
 ) {
-  if (!apiKey) throw new Error("Gemini API key not configured");
-
-  const requestedModel = normalizeGeminiModel(model);
-
-  // Daftar fallback yang dipersingkat. Jika 2.5-flash gagal, ia akan otomatis mundur ke 1.5-flash
-  const fallbackCandidates = [
-    requestedModel,
-    "gemini-2.5-flash",
-    "gemini-1.5-flash",
-  ].filter((value, index, arr) => value && arr.indexOf(value) === index);
-
-  // Coba v1beta terlebih dahulu karena gemini-2.5-flash biasanya tersedia di versi beta
-  const apiVersions = ["v1beta", "v1"];
-  let lastError = "";
-
-  // Deteksi apakah user butuh output JSON
-  const isJsonExpected = (prompt + (instruction || ""))
-    .toLowerCase()
-    .includes("json");
-
-  for (const apiVersion of apiVersions) {
-    for (const candidate of fallbackCandidates) {
-      const payload: any = {
-        contents: [{ parts: [{ text: prompt }] }],
-      };
-
-      if (instruction) {
-        payload.systemInstruction = { parts: [{ text: instruction }] };
-      }
-
-      if (isJsonExpected) {
-        payload.generationConfig = { responseMimeType: "application/json" };
-      }
-
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/${apiVersion}/models/${candidate}:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        },
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        const text =
-          data.candidates?.[0]?.content?.parts?.[0]?.text || "No response";
-
-        return { provider: "gemini", model: candidate, text };
-      }
-
-      const errorPayload = await response.text();
-      lastError = `${response.status} ${response.statusText}${
-        errorPayload ? ` - ${errorPayload}` : ""
-      }`;
-    }
+  if (!apiKey) {
+    throw new Error("Gemini API key not configured");
   }
 
-  throw new Error(`Gemini API error: ${lastError || "Unknown error"}`);
+  const candidate = normalizeGeminiModel(model);
+
+  const payload: any = {
+    contents: [
+      {
+        role: "user",
+        parts: [
+          {
+            text: prompt,
+          },
+        ],
+      },
+    ],
+  };
+
+  if (instruction?.trim()) {
+    payload.systemInstruction = {
+      parts: [
+        {
+          text: instruction,
+        },
+      ],
+    };
+  }
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${candidate}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  if (!response.ok) {
+    const errorPayload = await response.text();
+
+    console.error("Gemini Error:", errorPayload);
+
+    throw new Error(`Gemini API Error (${response.status}): ${errorPayload}`);
+  }
+
+  const data = await response.json();
+
+  const text =
+    data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join("") ||
+    "";
+
+  return {
+    provider: "gemini",
+    model: candidate,
+    text,
+  };
 }
 
 async function callGroq(

@@ -12,7 +12,7 @@ export default function AISettingsPage() {
   const [saving, setSaving] = useState(false);
 
   const [config, setConfig] = useState({
-    activeModel: "gemini-1.5-flash",
+    activeModel: "gemini-2.5-flash",
     cognitiveMode: "REMAJA",
     apiKey: "",
   });

@@ -4,15 +4,27 @@ import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/authOptions";
 import { getGenerateMateriPrompt } from "@/lib/ai-prompts/generate-materi-prompt";
-import { generateText } from "ai";
-import { createGroq } from "@ai-sdk/groq";
-
 
 const PROVIDER_DEFAULT_MODELS: Record<string, string> = {
-  gemini: "gemini-2.5-flash",
-  grok: "llama-3.3-70b-versatile",
+  gemini: "gemini-3-flash", // Default menggunakan model gratis terbaru
   groq: "llama-3.3-70b-versatile",
+  grok: "llama-3.3-70b-versatile",
 };
+
+function sanitizeModel(provider: string, model: string) {
+  if (provider === "gemini") {
+    // Izinkan gemini-3-flash dan gemini-2.5-flash.
+    // Jika user menggunakan model lama seperti gemini-pro, paksa pindah ke 3-flash.
+    if (
+      !model.includes("gemini-3-flash") &&
+      !model.includes("gemini-2.5-flash")
+    ) {
+      return "gemini-3-flash";
+    }
+  }
+
+  return model;
+}
 
 function resolveProviderAndModel(
   requestedProvider: string,
@@ -20,17 +32,21 @@ function resolveProviderAndModel(
   aiSettings: {
     apiKey: string | null;
     activeModel: string;
-  }
+  },
 ) {
   const provider = (requestedProvider || "").trim().toLowerCase();
 
   const providerHasKey = (candidate: string) => {
     switch (candidate) {
       case "gemini":
-        return Boolean(aiSettings.apiKey) || Boolean(process.env.GEMINI_API_KEY);
-      case "grok":
+        return (
+          Boolean(aiSettings.apiKey) || Boolean(process.env.GEMINI_API_KEY)
+        );
+
       case "groq":
+      case "grok":
         return Boolean(aiSettings.apiKey) || Boolean(process.env.GROQ_API_KEY);
+
       default:
         return false;
     }
@@ -42,15 +58,19 @@ function resolveProviderAndModel(
 
   const resolvedModel =
     resolvedProvider === provider
-      ? requestedModel
-      : PROVIDER_DEFAULT_MODELS[resolvedProvider] || requestedModel;
+      ? sanitizeModel(provider, requestedModel)
+      : PROVIDER_DEFAULT_MODELS[resolvedProvider];
 
-  return { provider: resolvedProvider, model: resolvedModel };
+  return {
+    provider: resolvedProvider,
+    model: resolvedModel,
+  };
 }
 
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -73,21 +93,26 @@ export async function POST(req: Request) {
     });
 
     let aiSettings = await prisma.aISettings.findUnique({
-      where: { userId: session.user.id },
+      where: {
+        userId: session.user.id,
+      },
     });
 
     if (!aiSettings) {
       aiSettings = await prisma.aISettings.create({
         data: {
           userId: session.user.id,
-          activeModel: "gemini-2.5-flash",
+          activeModel: "gemini-3-flash", // Default fallback pembuatan settings diset ke 3-flash
         },
       });
     }
 
-    // fallback persona (gunakan field dari session jika ada)
-    const cognitiveMode = (session.user as unknown as { cognitiveMode?: string } | undefined)?.cognitiveMode || "REMAJA";
-
+    const cognitiveMode =
+      (
+        session.user as unknown as {
+          cognitiveMode?: string;
+        }
+      )?.cognitiveMode || "REMAJA";
 
     const prompt = getGenerateMateriPrompt({
       title: body.title,
@@ -102,151 +127,133 @@ export async function POST(req: Request) {
       {
         apiKey: aiSettings.apiKey,
         activeModel: aiSettings.activeModel,
-      }
+      },
     );
 
-    let rawText = "";
+    const host = req.headers.get("host");
 
-    // Untuk menghindari dependency ai-sdk provider tambahan yang belum dipasang,
-    // gunakan endpoint /api/ai yang sudah teruji untuk semua provider.
-    // Prefer URL internal agar tidak bergantung NEXT_PUBLIC_APP_URL/VERCEL_URL
-    // Di Next.js server route, kita bisa pakai request-origin bila ada.
-    const origin = req.headers.get("x-forwarded-proto")
-      ? `${req.headers.get("x-forwarded-proto")}://${req.headers.get("host")}`
-      : req.headers.get("host")
-        ? `http://${req.headers.get("host")}`
-        : null;
+    const protocol = req.headers.get("x-forwarded-proto") || "http";
 
-    const fallbackBaseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL || "";
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      (host ? `${protocol}://${host}` : null);
 
-    if (!origin && !fallbackBaseUrl) {
+    if (!baseUrl) {
       return NextResponse.json(
         {
-          error: "Cannot resolve base URL for /api/ai",
-          hint: "Set NEXT_PUBLIC_APP_URL or ensure reverse proxy sends x-forwarded-proto + host",
+          error: "Cannot determine base URL",
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
-    const baseUrl = origin || fallbackBaseUrl;
-    const aiUrl = baseUrl.startsWith("http") ? `${baseUrl}/api/ai` : `https://${baseUrl}/api/ai`;
-
-    // 1. Ambil cookie dari request awal pengguna
     const cookieHeader = req.headers.get("cookie") || "";
 
-    // 2. Teruskan cookie tersebut ke endpoint /api/ai
-    const aiResponse = await fetch(aiUrl, {
+    const aiResponse = await fetch(`${baseUrl}/api/ai`, {
       method: "POST",
-      headers: { 
+      headers: {
         "Content-Type": "application/json",
-        "Cookie": cookieHeader // <--- Tambahkan baris ini
+        Cookie: cookieHeader,
       },
       body: JSON.stringify({
         provider,
         model,
         prompt,
-        instruction: undefined,
       }),
     });
 
     if (!aiResponse.ok) {
       const err = await aiResponse.json().catch(() => null);
+
+      console.error("AI ERROR:", err);
+
       return NextResponse.json(
         {
           error: "AI generation failed",
-          status: aiResponse.status,
-          aiError: err?.error || null,
-          aiRaw: err || null,
+          aiError: err?.error,
+          aiRaw: err,
         },
-        { status: aiResponse.status || 500 }
+        { status: aiResponse.status },
       );
     }
 
     const aiData = await aiResponse.json();
-    rawText = aiData?.text || (typeof aiData === "string" ? aiData : "");
+
+    const rawText = aiData?.text || (typeof aiData === "string" ? aiData : "");
+
     if (!rawText) {
       throw new Error("AI returned empty response");
     }
 
-    // --- TAMBAHKAN BARIS INI UNTUK DEBUGGING ---
     console.log("=== RAW AI OUTPUT ===");
     console.log(rawText);
     console.log("=====================");
 
-    // parse JSON safely
-    const parsed = (() => {
-      try {
-        return JSON.parse(rawText);
-      } catch {
-        // attempt to extract JSON substring
-        const start = rawText.indexOf("{");
-        const end = rawText.lastIndexOf("}");
-        if (start >= 0 && end > start) {
-          return JSON.parse(rawText.slice(start, end + 1));
-        }
+    let parsed: any;
+
+    try {
+      parsed = JSON.parse(rawText);
+    } catch {
+      const start = rawText.indexOf("{");
+      const end = rawText.lastIndexOf("}");
+
+      if (start === -1 || end === -1) {
         throw new Error("AI output is not valid JSON");
       }
-    })() as {
-      subtopics: Array<{
-        title: string;
-        level: "Mudah" | "Menengah" | "Sulit" | string;
-        content: string;
-        exercises: Array<{
-          type: string;
-          question: string;
-          answer: string;
-          explanation: string;
-        }>;
-      }>;
-    };
+
+      parsed = JSON.parse(rawText.slice(start, end + 1));
+    }
 
     const createdSubtopics = await Promise.all(
-      (parsed.subtopics || []).map((st) =>
+      (parsed.subtopics || []).map((subtopic: any) =>
         prisma.subtopic.create({
           data: {
             topicId: topic.id,
-            title: st.title,
-            level: st.level || "Menengah",
-            content: st.content || "",
+            title: subtopic.title,
+            level: subtopic.level || "Menengah",
+            content: subtopic.content || "",
           },
-        })
-      )
+        }),
+      ),
     );
 
-    // exercises
-    const exerciseCreates: any[] = [];
-    parsed.subtopics?.forEach((st, idx) => {
-      const subtopic = createdSubtopics[idx];
-      if (!subtopic) return;
-      (st.exercises || []).forEach((ex) => {
-        exerciseCreates.push(
+    const exercisePromises: Promise<any>[] = [];
+
+    parsed.subtopics?.forEach((subtopic: any, index: number) => {
+      const created = createdSubtopics[index];
+
+      if (!created) return;
+
+      (subtopic.exercises || []).forEach((exercise: any) => {
+        exercisePromises.push(
           prisma.exercise.create({
             data: {
-              subtopicId: subtopic.id,
-              type: ex.type,
-              question: ex.question,
-              answer: ex.answer,
-              explanation: ex.explanation,
+              subtopicId: created.id,
+              type: exercise.type || "essay",
+              question: exercise.question || "",
+              answer: exercise.answer || "",
+              explanation: exercise.explanation || "",
             },
-          })
+          }),
         );
       });
     });
 
-    await Promise.all(exerciseCreates);
+    await Promise.all(exercisePromises);
 
     return NextResponse.json({
+      success: true,
       topic,
       subtopics: createdSubtopics,
     });
   } catch (error: any) {
     console.error("Generate materi error:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal server error" },
 
-      { status: 500 }
+    return NextResponse.json(
+      {
+        error: error?.message || "Internal server error",
+      },
+      { status: 500 },
     );
   }
 }
-
