@@ -9,7 +9,8 @@ import {
   FiTarget,
   FiTrendingUp,
   FiAward,
-  FiList
+  FiList,
+  FiEye // Ikon baru untuk tombol riwayat
 } from "react-icons/fi";
 import { FaGem } from "react-icons/fa"; 
 import Link from "next/link";
@@ -22,20 +23,15 @@ export default function LearnPage({ params }: { params: Promise<{ topicId: strin
   const [subtopics, setSubtopics] = useState<Array<{ id: string; title: string; level: string; content: string }>>([]);
   const [loadingData, setLoadingData] = useState(true);
 
-  // STATE BARU: Menyimpan sub-bab mana yang sedang dilihat analisis detailnya
   const [selectedSubtopicId, setSelectedSubtopicId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Sinkronisasi parameter URL ketika komponen pertama kali dimuat
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get("view") === "latihan") {
       setViewMode("latihan");
     }
-    
     const subId = urlParams.get("subtopicId");
-    if (subId) {
-      setSelectedSubtopicId(subId);
-    }
+    if (subId) setSelectedSubtopicId(subId);
 
     const load = async () => {
       try {
@@ -78,7 +74,6 @@ export default function LearnPage({ params }: { params: Promise<{ topicId: strin
             <button
               onClick={() => {
                 setViewMode("latihan");
-                // Menghapus pilihan subtopicId di URL saat tab utama diklik manual
                 window.history.pushState({}, "", `/learn/${topicId}?view=latihan`);
               }}
               className={`flex-1 py-4 text-sm font-bold transition-all ${
@@ -96,39 +91,31 @@ export default function LearnPage({ params }: { params: Promise<{ topicId: strin
       </div>
 
       {/* ========================================================= */}
-      {/* MODE MATERI (ROADMAP KIRI KANAN) */}
+      {/* MODE MATERI */}
       {/* ========================================================= */}
       {viewMode === "materi" && (
         <div className="max-w-6xl mx-auto p-5 mt-4 md:mt-8">
           <div className="flex flex-col md:flex-row items-center relative gap-4 md:gap-0">
-
-            {/* SISI KIRI: Kotak Judul Utama */}
             <div className="md:w-5/12 w-full relative z-20 md:pr-8 lg:pr-14 mb-6 md:mb-0">
               <div className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl p-8 text-center shadow-xl shadow-black/40 relative">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-2xl" />
-
                 <div className="mx-auto flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 mb-5 shadow-[0_0_15px_rgba(59,130,246,0.1)]">
                   <FaGem size={26} className="animate-pulse" />
                 </div>
-
                 <span className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-full inline-block mb-3">
                   Topik Pembelajaran
                 </span>
-
                 <h1 className="text-3xl lg:text-4xl font-extrabold text-white leading-tight">
                   {loadingData ? "Memuat..." : topicTitle || "Topik"}
                 </h1>
-                
                 <p className="text-sm text-zinc-400 mt-4 leading-relaxed">
                   Roadmap pembelajaran terstruktur yang di-dekomposisi khusus untukmu oleh AI.
                 </p>
-
                 <div className="hidden md:block absolute top-1/2 -right-8 lg:-right-14 w-8 lg:w-14 h-0.5 bg-blue-500/40" />
                 <div className="hidden md:block absolute top-1/2 -right-8 lg:-right-14 w-2 h-2 -mt-[3px] rounded-full bg-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.8)] z-30" />
               </div>
             </div>
 
-            {/* SISI KANAN: Daftar Materi (Kotak Rekomendasi di bawah sudah dihapus) */}
             <div className="md:w-7/12 w-full relative z-10 flex flex-col gap-4">
               <div className="hidden md:block absolute left-0 top-8 bottom-8 w-0.5 bg-gradient-to-b from-blue-500/10 via-blue-500/30 to-blue-500/10 -ml-[1px]" />
 
@@ -173,19 +160,18 @@ export default function LearnPage({ params }: { params: Promise<{ topicId: strin
                 ))
               )}
             </div>
-
           </div>
         </div>
       )}
 
       {/* ========================================================= */}
-      {/* MODE ANALISIS (BERIKUT FITUR DAFTAR PER SUB-BAB MATERI) */}
+      {/* MODE ANALISIS */}
       {/* ========================================================= */}
       {viewMode === "latihan" && (
         <div className="max-w-4xl mx-auto p-5 mt-4 md:mt-8 space-y-6 animate-in fade-in slide-in-from-bottom-4">
           
           {selectedSubtopicId === null ? (
-            /* --- TAMPILAN 1: DAFTAR ANALISIS UTAMA PER SUB-BAB MATERI --- */
+            /* --- DAFTAR LIST SUB-BAB --- */
             <div className="bg-zinc-900/50 border border-white/5 rounded-3xl p-6 md:p-8 shadow-xl">
               <div className="flex items-center gap-3 mb-4">
                 <FiList className="text-purple-400" size={24} />
@@ -199,7 +185,6 @@ export default function LearnPage({ params }: { params: Promise<{ topicId: strin
 
               <div className="flex flex-col gap-4">
                 {subtopics.map((item, index) => {
-                  // Ambil data nilai tersimpan lokal per subtopicId
                   const scoreStr = localStorage.getItem(`mastery_${item.id}`);
                   const scoreNum = scoreStr ? parseInt(scoreStr, 10) : null;
 
@@ -208,7 +193,6 @@ export default function LearnPage({ params }: { params: Promise<{ topicId: strin
                       key={item.id}
                       onClick={() => {
                         setSelectedSubtopicId(item.id);
-                        // Perbarui URL agar sinkron
                         window.history.pushState({}, "", `/learn/${topicId}?view=latihan&subtopicId=${item.id}`);
                       }}
                       className="w-full flex items-center justify-between gap-4 rounded-2xl border border-white/5 bg-zinc-900/40 p-5 hover:border-purple-500/40 hover:bg-purple-500/5 transition-all text-left group"
@@ -243,13 +227,13 @@ export default function LearnPage({ params }: { params: Promise<{ topicId: strin
               </div>
             </div>
           ) : (
-            /* --- TAMPILAN 2: DETAIL ROADMAP & REKOMENDASI (SETELAH KOTAK DIKLIK) --- */
+            /* --- DETAIL ROADMAP PER SUB-BAB --- */
             (() => {
               const currentSubtopic = subtopics.find((st) => st.id === selectedSubtopicId);
               const scoreStr = localStorage.getItem(`mastery_${selectedSubtopicId}`);
-              const scoreNum = scoreStr ? parseInt(scoreStr, 10) : 0;
+              const hasTakenQuiz = scoreStr !== null; // Cek apakah user sudah latihan
+              const scoreNum = hasTakenQuiz ? parseInt(scoreStr, 10) : 0;
 
-              // Hitung kategori performa secara dinamis
               let category = "Perlu Peningkatan";
               let badgeColor = "bg-red-500/10 text-red-400 border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)]";
               let recText = `Sistem mendeteksi bahwa pemahaman konsep Anda pada sub-bab "${currentSubtopic?.title || "Materi"}" masih memerlukan peningkatan materi dasar. Pelajari kembali materi lewat roadmap di bawah ini.`;
@@ -269,7 +253,6 @@ export default function LearnPage({ params }: { params: Promise<{ topicId: strin
 
               return (
                 <div className="space-y-6">
-                  {/* Tombol kembali ke list utama daftar sub-bab */}
                   <button
                     onClick={() => {
                       setSelectedSubtopicId(null);
@@ -280,7 +263,6 @@ export default function LearnPage({ params }: { params: Promise<{ topicId: strin
                     ← Kembali ke Daftar Analisis
                   </button>
 
-                  {/* HEADER KOTAK PRESENTASE */}
                   <div className="bg-gradient-to-b from-purple-900/20 to-blue-900/10 border border-purple-500/20 rounded-[2rem] p-8 md:p-12 text-center shadow-2xl relative overflow-hidden">
                      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[120%] md:w-full h-1/2 bg-purple-500/10 blur-[60px] rounded-full pointer-events-none"></div>
                      
@@ -293,63 +275,55 @@ export default function LearnPage({ params }: { params: Promise<{ topicId: strin
                      
                      <div className="mt-8 relative z-10 flex flex-col items-center">
                        <div className={`text-6xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r ${scoreColor} mb-3 drop-shadow-[0_0_30px_rgba(168,85,247,0.3)]`}>
-                         {scoreNum}%
+                         {hasTakenQuiz ? `${scoreNum}%` : "-"}
                        </div>
-                       <div className={`flex items-center gap-2 px-5 py-2 rounded-full border font-bold text-sm tracking-wider uppercase ${badgeColor}`}>
-                         <FiAward size={18} /> Kategori: {category}
-                       </div>
-                     </div>
-                  </div>
-
-                  {/* ROADMAP REKOMENDASI BELAJAR */}
-                  <div className="bg-zinc-900/80 border border-white/5 rounded-3xl p-6 md:p-10 shadow-xl relative overflow-hidden">
-                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-purple-500 to-blue-500"></div>
-
-                     <h3 className="text-xl md:text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                       <FiTrendingUp className="text-purple-400" size={24} /> 
-                       Roadmap & Rekomendasi Belajar
-                     </h3>
-                     
-                     <p className="text-zinc-400 mb-8 leading-relaxed text-base md:text-lg">
-                       {recText}
-                     </p>
-                     
-                     <div className="relative pl-8 md:pl-10 border-l-2 border-purple-500/20 space-y-10">
-                       
-                       <div className="relative group">
-                         <div className="absolute -left-[41px] md:-left-[49px] top-1 w-5 h-5 rounded-full bg-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.6)] flex items-center justify-center ring-4 ring-[#09090b]">
-                           <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                       {hasTakenQuiz && (
+                         <div className={`flex items-center gap-2 px-5 py-2 rounded-full border font-bold text-sm tracking-wider uppercase ${badgeColor}`}>
+                           <FiAward size={18} /> Kategori: {category}
                          </div>
-                         <h4 className="font-bold text-lg md:text-xl text-white group-hover:text-purple-300 transition-colors">
-                           1. Evaluasi Kunci Jawaban
-                         </h4>
-                         <p className="text-zinc-400 mt-2 leading-relaxed">
-                           Tinjau ulang lembar hasil evaluasi pengerjaan Anda. Perhatikan poin-poin penjelasan singkat yang dikeluarkan AI untuk meluruskan pemahaman yang kurang tepat.
-                         </p>
-                       </div>
-
-                       <div className="relative group">
-                         <div className="absolute -left-[41px] md:-left-[49px] top-1 w-5 h-5 rounded-full bg-zinc-700 border border-zinc-500 flex items-center justify-center ring-4 ring-[#09090b]"></div>
-                         <h4 className="font-bold text-lg md:text-xl text-white group-hover:text-blue-300 transition-colors">
-                           2. Konsolidasi via Chat AI Inline
-                         </h4>
-                         <p className="text-zinc-400 mt-2 leading-relaxed">
-                           Jika Anda memiliki keraguan mengenai struktur rumus atau penjabaran materi, manfaatkan kolom *Tanya Jawab AI* di dalam lembar bacaan sub-bab materi tersebut.
-                         </p>
-                       </div>
-
-                       <div className="relative group">
-                         <div className="absolute -left-[41px] md:-left-[49px] top-1 w-5 h-5 rounded-full bg-zinc-700 border border-zinc-500 flex items-center justify-center ring-4 ring-[#09090b]"></div>
-                         <h4 className="font-bold text-lg md:text-xl text-white group-hover:text-blue-300 transition-colors flex items-center gap-2">
-                           3. Penguasaan Peta Konsep <FiTarget className="text-red-400" />
-                         </h4>
-                         <p className="text-zinc-400 mt-2 leading-relaxed">
-                           Setelah mematangkan materi ini, Anda dipersilakan melanjutkan rute eksplorasi ke sub-bab pembelajaran berikutnya demi mencetak penguasaan topik 100%.
-                         </p>
-                       </div>
-
+                       )}
+                     </div>
+                     
+                     {/* TOMBOL LIHAT RIWAYAT SOAL */}
+                     <div className="mt-8 relative z-10">
+                        <Link 
+                          href={`/exercise/${selectedSubtopicId}`} 
+                          className="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:scale-105"
+                        >
+                          <FiEye size={18} />
+                          {hasTakenQuiz ? "Lihat Riwayat Jawaban" : "Mulai Kerjakan Latihan"}
+                        </Link>
                      </div>
                   </div>
+
+                  {hasTakenQuiz && (
+                    <div className="bg-zinc-900/80 border border-white/5 rounded-3xl p-6 md:p-10 shadow-xl relative overflow-hidden">
+                       <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-purple-500 to-blue-500"></div>
+                       <h3 className="text-xl md:text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                         <FiTrendingUp className="text-purple-400" size={24} /> Roadmap & Rekomendasi Belajar
+                       </h3>
+                       <p className="text-zinc-400 mb-8 leading-relaxed text-base md:text-lg">{recText}</p>
+                       <div className="relative pl-8 md:pl-10 border-l-2 border-purple-500/20 space-y-10">
+                         <div className="relative group">
+                           <div className="absolute -left-[41px] md:-left-[49px] top-1 w-5 h-5 rounded-full bg-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.6)] flex items-center justify-center ring-4 ring-[#09090b]">
+                             <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                           </div>
+                           <h4 className="font-bold text-lg md:text-xl text-white group-hover:text-purple-300 transition-colors">1. Evaluasi Kunci Jawaban</h4>
+                           <p className="text-zinc-400 mt-2 leading-relaxed">Tinjau ulang lembar hasil evaluasi pengerjaan Anda dengan menekan tombol <strong>Lihat Riwayat Jawaban</strong> di atas.</p>
+                         </div>
+                         <div className="relative group">
+                           <div className="absolute -left-[41px] md:-left-[49px] top-1 w-5 h-5 rounded-full bg-zinc-700 border border-zinc-500 flex items-center justify-center ring-4 ring-[#09090b]"></div>
+                           <h4 className="font-bold text-lg md:text-xl text-white group-hover:text-blue-300 transition-colors">2. Konsolidasi via Chat AI Inline</h4>
+                           <p className="text-zinc-400 mt-2 leading-relaxed">Jika ada keraguan mengenai penjelasan AI di soal tadi, tanyakan keraguan tersebut pada kolom *Tanya Jawab AI* di lembar materi sub-bab ini.</p>
+                         </div>
+                         <div className="relative group">
+                           <div className="absolute -left-[41px] md:-left-[49px] top-1 w-5 h-5 rounded-full bg-zinc-700 border border-zinc-500 flex items-center justify-center ring-4 ring-[#09090b]"></div>
+                           <h4 className="font-bold text-lg md:text-xl text-white group-hover:text-blue-300 transition-colors flex items-center gap-2">3. Penguasaan Peta Konsep <FiTarget className="text-red-400" /></h4>
+                           <p className="text-zinc-400 mt-2 leading-relaxed">Setelah mematangkan materi ini, Anda dipersilakan melanjutkan rute eksplorasi ke sub-bab pembelajaran berikutnya.</p>
+                         </div>
+                       </div>
+                    </div>
+                  )}
                 </div>
               );
             })()

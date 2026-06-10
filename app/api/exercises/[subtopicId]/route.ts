@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// app/api/exercises/[subtopicId]/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
@@ -16,69 +15,69 @@ export async function GET(
     });
 
     if (!subtopic) {
-      return NextResponse.json(
-        { error: "Materi tidak ditemukan" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "Materi tidak ditemukan" }, { status: 404 });
     }
 
-    // PERBAIKAN: Instruksi ke AI diubah agar membuat soal Pilihan Ganda DAN Esai!
-    const prompt = `Anda adalah Tutor AI ThinkTrack EdTech. Buat total 5 soal latihan berdasarkan materi ini, yang terdiri dari 2 soal Pilihan Ganda dan 3 soal Esai.
+    // Cek Database Dulu (Mencegah AI men-generate ulang / scraping)
+    const existingExercises = await prisma.exercise.findMany({
+      where: { subtopicId: subtopic.id },
+      orderBy: { id: 'asc' } 
+    });
+
+    if (existingExercises.length > 0) {
+      return NextResponse.json({
+        subtopicId,
+        questions: existingExercises,
+      });
+    }
+
+    // INSTRUKSI DIPERTEGAS: Wajib batas 5 soal!
+    const prompt = `Anda adalah Tutor AI ThinkTrack EdTech. Buat TEPAT 5 soal latihan berdasarkan materi ini. Komposisinya WAJIB: 2 soal Pilihan Ganda dan 3 soal Esai.
 Judul: "${subtopic.title}"
 Isi: "${subtopic.content}"
 
-Wajib berikan jawaban dalam format JSON murni (array of objects), TIDAK BOLEH ada teks lain, markdown, atau pembuka/penutup.
-Format JSON yang WAJIB digunakan:
+ATURAN SANGAT KETAT:
+1. HANYA kembalikan array berisi TEPAT 5 object JSON. Jangan lebih dan jangan kurang!
+2. TIDAK BOLEH ada teks pembuka/penutup, cukup array JSON mentah.
+3. Gunakan format JSON berikut:
 [
   {
     "type": "pilihan ganda",
-    "question": "Pertanyaan soal... (Sertakan opsi A. , B. , C. , D. di dalam teks pertanyaan)",
+    "question": "Pertanyaan... (Sertakan opsi A. , B. , C. , D. di dalam teks)",
     "answer": "Kunci jawaban (Misalnya: A. Jawaban)",
     "explanation": "Penjelasan mengapa jawaban tersebut benar"
   },
   {
     "type": "Esai",
-    "question": "Pertanyaan soal esai yang membutuhkan analisa atau penjelasan dari materi di atas...",
+    "question": "Pertanyaan soal esai...",
     "answer": "Kunci jawaban / poin-poin penting yang harus ada",
-    "explanation": "Penjelasan lengkap untuk evaluasi jawaban"
+    "explanation": "Penjelasan lengkap"
   }
 ]`;
 
     const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) throw new Error("GROQ_API_KEY tidak ditemukan");
 
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: "GROQ_API_KEY tidak ditemukan di .env" },
-        { status: 500 },
-      );
-    }
-
-    const response = await fetch(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
-          messages: [{ role: "user", content: prompt }],
-          temperature: 0.7,
-        }),
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.5, // Diturunkan sedikit agar AI tidak terlalu kreatif/ngelantur
+      }),
+    });
 
-    if (!response.ok) {
-      throw new Error("Gagal menghubungi server Groq");
-    }
+    if (!response.ok) throw new Error("Gagal menghubungi server Groq");
 
     const data = await response.json();
     const content = data.choices[0].message.content;
-
     const jsonString = content.replace(/```json|```/gi, "").trim();
 
-    let generatedQuestions;
+    let generatedQuestions = [];
     try {
       generatedQuestions = JSON.parse(jsonString);
     } catch (e) {
@@ -91,20 +90,25 @@ Format JSON yang WAJIB digunakan:
       }
     }
 
-    // Simpan soal yang di-generate ke database
+    // ==============================================================================
+    // PERLINDUNGAN LAPIS 2: POTONG PAKSA JIKA AI NAKAL MEMBUAT LEBIH DARI 5 SOAL
+    // ==============================================================================
+    if (Array.isArray(generatedQuestions) && generatedQuestions.length > 5) {
+      generatedQuestions = generatedQuestions.slice(0, 5);
+    }
+
     const savedExercises = await Promise.all(
       generatedQuestions.map((q: any) =>
         prisma.exercise.create({
           data: {
             subtopicId: subtopic.id,
-            // Jika tipe dari AI tidak ada, default ke pilihan ganda
             type: q.type || "pilihan ganda",
             question: q.question || "",
             answer: q.answer || "",
             explanation: q.explanation || "",
           },
-        }),
-      ),
+        })
+      )
     );
 
     return NextResponse.json({
@@ -113,9 +117,6 @@ Format JSON yang WAJIB digunakan:
     });
   } catch (error: any) {
     console.error("Error Groq API:", error);
-    return NextResponse.json(
-      { error: "Gagal membuat soal dengan Groq", details: error.message },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Gagal membuat soal dengan Groq", details: error.message }, { status: 500 });
   }
 }
