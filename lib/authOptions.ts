@@ -4,6 +4,18 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
+// Module Augmentation untuk memastikan TypeScript mengenali properti 'id' di session.user
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+    };
+  }
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -16,7 +28,7 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email || !credentials?.password) return null;
 
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { email: credentials.email.toLowerCase() }, // Pastikan case-insensitive
         });
 
         if (!user) return null;
@@ -34,29 +46,16 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
   callbacks: {
     async jwt({ token, user }) {
-      if (user) token.id = user.id ?? token.sub;
+      // Hanya berjalan sekali saat user login
+      if (user) {
+        token.id = user.id;
+      }
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
-        const email = session.user.email ?? token.email;
-
-        let resolvedId = ((token.id as string) ?? token.sub ?? "") as string;
-
-        // If DB was reset or token became stale, resolve the latest user id by email.
-        if (email) {
-          const existingUser = await prisma.user.findUnique({
-            where: { email },
-            select: { id: true },
-          });
-
-          if (existingUser?.id) {
-            resolvedId = existingUser.id;
-            token.id = existingUser.id;
-          }
-        }
-
-        (session.user as typeof session.user & { id: string }).id = resolvedId;
+      // Pass ID dari token ke session tanpa perlu query DB lagi
+      if (session.user && token.id) {
+        session.user.id = token.id as string;
       }
       return session;
     },

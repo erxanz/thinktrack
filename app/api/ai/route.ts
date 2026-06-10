@@ -1,21 +1,25 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+// app/api/ai/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { generateText } from "ai";
-import { createGroq } from "@ai-sdk/groq";
 import { authOptions } from "@/lib/authOptions";
 import { prisma } from "@/lib/prisma";
 
+// Interface yang jelas untuk request payload
 interface AIRequest {
-  provider: string;
-  model: string;
+  provider?: string;
+  model?: string;
   prompt: string;
   instruction?: string;
 }
 
+// Interface untuk payload Gemini
+interface GeminiPayload {
+  contents: { role: string; parts: { text: string }[] }[];
+  systemInstruction?: { parts: { text: string }[] };
+}
+
 const PROVIDER_DEFAULT_MODELS: Record<string, string> = {
-  gemini: "gemini-3.1-flash-lite",
+  gemini: "gemini-3.1-flash-lite", // Menggunakan versi flash yang lebih standar
   grok: "llama-3.3-70b-versatile",
   groq: "llama-3.3-70b-versatile",
 };
@@ -23,22 +27,18 @@ const PROVIDER_DEFAULT_MODELS: Record<string, string> = {
 function normalizeGeminiModel(model: string) {
   let normalized = (model || "").trim().toLowerCase();
 
-  // Bersihkan awalan models/ jika ada
   if (normalized.startsWith("models/")) {
     normalized = normalized.replace("models/", "");
   }
 
-  // Jika kosong atau memakai nama lama, paksa ke 2.5-flash
-  if (!normalized || normalized === "gemini-pro") {
-    return "gemini-3.1-flash-lite";
-  }
-
-  // Normalisasi penulisan spasi ke strip
-  if (normalized === "gemini 2.5 flash") {
-    return "gemini-3.1-flash-lite";
-  }
-
-  if (normalized.includes("3-flash")) {
+  // Jika kosong atau memakai nama lama, set ke gemini-3.1-flash-lite
+  if (
+    !normalized ||
+    normalized === "gemini-pro" ||
+    normalized === "gemini 2.5 flash" ||
+    normalized.includes("3-flash") ||
+    normalized.includes("3.1-flash") // Menangani typo yang ada sebelumnya
+  ) {
     return "gemini-3.1-flash-lite";
   }
 
@@ -56,9 +56,7 @@ function getProviderFromModel(model: string): string {
 function resolveProviderAndModel(
   requestedProvider: string,
   requestedModel: string,
-  aiSettings: {
-    apiKey: string | null;
-  },
+  aiSettings: { apiKey: string | null },
 ) {
   const provider = (requestedProvider || "").trim().toLowerCase();
 
@@ -66,11 +64,9 @@ function resolveProviderAndModel(
     switch (candidate) {
       case "gemini":
         return Boolean(aiSettings.apiKey || process.env.GEMINI_API_KEY);
-
       case "groq":
       case "grok":
         return Boolean(process.env.GROQ_API_KEY);
-
       default:
         return false;
     }
@@ -108,8 +104,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = (await request.json()) as AIRequest;
-    const { model, prompt, instruction } = body; // Pakai const untuk yang tidak berubah
-    let { provider } = body; // Pakai let khusus untuk provider karena nilainya bisa ditimpa
+    const { model, prompt, instruction } = body;
+    let { provider } = body;
 
     let aiSettings = await prisma.aISettings.findUnique({
       where: { userId: user.id },
@@ -119,7 +115,7 @@ export async function POST(request: NextRequest) {
       aiSettings = await prisma.aISettings.create({
         data: {
           userId: user.id,
-          activeModel: "gemini-3.1-flash-lite", // Menyimpan 2.5-flash ke database jika belum ada
+          activeModel: "gemini-3.1-flash-lite", // Menggunakan default yang standar
         },
       });
     }
@@ -130,7 +126,8 @@ export async function POST(request: NextRequest) {
     const targetModel = model || aiSettings.activeModel;
 
     let apiKey: string | null = null;
-    let response: any;
+    let response: { provider: string; model: string; text: string };
+
     const resolved = resolveProviderAndModel(
       provider,
       normalizeGeminiModel(targetModel),
@@ -141,7 +138,6 @@ export async function POST(request: NextRequest) {
       case "gemini":
         try {
           apiKey = aiSettings.apiKey || process.env.GEMINI_API_KEY || null;
-
           response = await callGemini(
             resolved.model,
             prompt,
@@ -154,7 +150,6 @@ export async function POST(request: NextRequest) {
           }
         } catch (geminiError) {
           console.error("Gemini failed, fallback to Groq:", geminiError);
-
           const groqKey = process.env.GROQ_API_KEY || null;
 
           if (!groqKey) {
@@ -172,7 +167,6 @@ export async function POST(request: NextRequest) {
             throw new Error("Groq returned empty response");
           }
         }
-
         break;
 
       case "groq":
@@ -187,27 +181,21 @@ export async function POST(request: NextRequest) {
         if (!response?.text?.trim()) {
           throw new Error("Groq returned empty response");
         }
-
         break;
 
       default:
         return NextResponse.json(
-          {
-            error: `Unsupported provider: ${resolved.provider}`,
-          },
-          {
-            status: 400,
-          },
+          { error: `Unsupported provider: ${resolved.provider}` },
+          { status: 400 },
         );
     }
 
     return NextResponse.json(response);
-  } catch (error: any) {
-    console.error("Error calling AI provider:", error);
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: 500 },
-    );
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Internal server error";
+    console.error("Error calling AI provider:", errorMessage);
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -217,32 +205,17 @@ async function callGemini(
   instruction: string | undefined,
   apiKey: string | null,
 ) {
-  if (!apiKey) {
-    throw new Error("Gemini API key not configured");
-  }
+  if (!apiKey) throw new Error("Gemini API key not configured");
 
   const candidate = normalizeGeminiModel(model);
 
-  const payload: any = {
-    contents: [
-      {
-        role: "user",
-        parts: [
-          {
-            text: prompt,
-          },
-        ],
-      },
-    ],
+  const payload: GeminiPayload = {
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
   };
 
   if (instruction?.trim()) {
     payload.systemInstruction = {
-      parts: [
-        {
-          text: instruction,
-        },
-      ],
+      parts: [{ text: instruction }],
     };
   }
 
@@ -250,32 +223,26 @@ async function callGemini(
     `https://generativelanguage.googleapis.com/v1beta/models/${candidate}:generateContent?key=${apiKey}`,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     },
   );
 
   if (!response.ok) {
     const errorPayload = await response.text();
-
     console.error("Gemini Error:", errorPayload);
-
     throw new Error(`Gemini API Error (${response.status}): ${errorPayload}`);
   }
 
-  const data = await response.json();
+  // Menggunakan tipe unknown agar typescript aman tanpa "any"
+  const data = (await response.json()) as {
+    candidates?: Array<{ content?: { parts?: Array<{ text: string }> } }>;
+  };
 
   const text =
-    data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join("") ||
-    "";
+    data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") || "";
 
-  return {
-    provider: "gemini",
-    model: candidate,
-    text,
-  };
+  return { provider: "gemini", model: candidate, text };
 }
 
 async function callGroq(
@@ -284,9 +251,7 @@ async function callGroq(
   instruction: string | undefined,
   apiKey: string | null,
 ) {
-  if (!apiKey) {
-    throw new Error("Groq API key not configured");
-  }
+  if (!apiKey) throw new Error("Groq API key not configured");
 
   const response = await fetch(
     "https://api.groq.com/openai/v1/chat/completions",
@@ -300,28 +265,17 @@ async function callGroq(
         model,
         temperature: 0.7,
         messages: [
-          ...(instruction
-            ? [
-                {
-                  role: "system",
-                  content: instruction,
-                },
-              ]
-            : []),
-          {
-            role: "user",
-            content: prompt,
-          },
+          ...(instruction ? [{ role: "system", content: instruction }] : []),
+          { role: "user", content: prompt },
         ],
       }),
     },
   );
 
-  const data = await response.json();
-
-  console.log("=== GROQ RESPONSE ===");
-  console.log(JSON.stringify(data, null, 2));
-  console.log("=====================");
+  const data = (await response.json()) as {
+    error?: { message: string };
+    choices?: Array<{ message?: { content: string } }>;
+  };
 
   if (!response.ok) {
     throw new Error(
@@ -331,13 +285,7 @@ async function callGroq(
 
   const text = data?.choices?.[0]?.message?.content ?? "";
 
-  if (!text.trim()) {
-    throw new Error("Groq returned empty content");
-  }
+  if (!text.trim()) throw new Error("Groq returned empty content");
 
-  return {
-    provider: "groq",
-    model,
-    text,
-  };
+  return { provider: "groq", model, text };
 }

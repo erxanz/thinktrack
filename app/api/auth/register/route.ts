@@ -2,60 +2,46 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { Prisma } from "@/app/generated/prisma/client";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { name, email, password } = body;
 
-    console.log("Register attempt:", { name, email, passwordLength: password?.length });
-
     // Validasi input
     if (!name || !email || !password) {
       return NextResponse.json(
         { error: "Name, email, and password are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (typeof name !== "string" || name.trim().length === 0) {
       return NextResponse.json(
         { error: "Name must be a non-empty string" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (typeof email !== "string" || !email.includes("@")) {
       return NextResponse.json(
         { error: "Valid email is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (typeof password !== "string" || password.length < 6) {
       return NextResponse.json(
         { error: "Password must be at least 6 characters" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // Cek apakah email sudah terdaftar
-    console.log("Checking existing user with email:", email.toLowerCase());
-    const existingUser = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
-    });
-
-    if (existingUser) {
-      return NextResponse.json(
-        { error: "Email already registered" },
-        { status: 409 }
-      );
-    }
-
-    // Hash password dan buat user
-    console.log("Creating user with email:", email.toLowerCase());
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Langsung coba buat user (lebih efisien daripada findUnique lalu create)
     const user = await prisma.user.create({
       data: {
         name: name.trim(),
@@ -63,8 +49,6 @@ export async function POST(req: Request) {
         password: hashedPassword,
       },
     });
-
-    console.log("User created successfully:", user.id);
 
     return NextResponse.json(
       {
@@ -75,37 +59,41 @@ export async function POST(req: Request) {
           email: user.email,
         },
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Registration error:", {
-      message: errorMessage,
-      error: error,
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    console.error("Registration error:", error);
 
-    // Lebih spesifik dalam response untuk debugging
-    if (errorMessage.includes("Unique constraint")) {
-      return NextResponse.json(
-        { error: "Email already registered" },
-        { status: 409 }
-      );
+    // Penanganan Error Prisma yang benar
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2002") {
+        return NextResponse.json(
+          { error: "Email already registered" },
+          { status: 409 },
+        );
+      }
     }
 
-    if (errorMessage.includes("SQLITE_CANTOPEN")) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+
+    if (
+      errorMessage.includes("SQLITE_CANTOPEN") ||
+      errorMessage.includes("Connection")
+    ) {
       return NextResponse.json(
         { error: "Database connection failed" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     return NextResponse.json(
-      { 
+      {
         error: "An error occurred during registration",
-        details: process.env.NODE_ENV === "development" ? errorMessage : undefined
+        details:
+          process.env.NODE_ENV === "development" ? errorMessage : undefined,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
