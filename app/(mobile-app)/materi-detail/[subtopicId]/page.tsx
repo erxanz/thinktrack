@@ -214,20 +214,31 @@ Jawablah dengan jelas, ringkas, dan informatif. WAJIB selalu gunakan format blok
         </div>
 
         {/* --- SECTION BARU: CALL TO ACTION LATIHAN --- */}
-        <div className="mt-12 mb-8 p-8 rounded-3xl bg-gradient-to-br from-blue-600/20 to-purple-600/20 border border-white/10 text-center">
-           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-500/20 text-blue-400 mb-4">
-              <FiCheckCircle size={32} />
+        <div className="mt-16 mb-12 p-10 md:p-14 rounded-[2.5rem] bg-gradient-to-br from-blue-600/20 to-purple-600/20 border border-white/10 text-center shadow-2xl shadow-blue-900/20 relative overflow-hidden">
+           {/* Efek glow tambahan di latar belakang agar lebih estetik */}
+           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1/2 bg-blue-500/10 blur-[50px] rounded-full pointer-events-none"></div>
+           
+           {/* Ikon Check Lebih Besar */}
+           <div className="relative z-10 inline-flex items-center justify-center w-20 h-20 md:w-24 md:h-24 rounded-full bg-blue-500/20 text-blue-400 mb-6 ring-4 ring-blue-500/10">
+              <FiCheckCircle size={44} className="md:w-12 md:h-12" />
            </div>
-           <h3 className="text-xl font-bold text-white mb-2">Materi Selesai Dibaca!</h3>
-           <p className="text-zinc-400 text-sm mb-8">
-              Kamu sudah mempelajari "{materi?.title}". Sekarang, uji pemahamanmu dengan 5 soal latihan singkat.
+           
+           {/* Teks Judul Lebih Besar */}
+           <h3 className="relative z-10 text-2xl md:text-3xl font-extrabold text-white mb-4 tracking-tight">
+             Materi Selesai Dibaca!
+           </h3>
+           
+           {/* Teks Deskripsi Lebih Jelas */}
+           <p className="relative z-10 text-zinc-300 text-base md:text-lg mb-10 max-w-xl mx-auto leading-relaxed">
+              Kamu sudah mempelajari <span className="font-semibold text-white">"{materi?.title}"</span>. Sekarang, uji pemahamanmu dengan latihan soal singkat.
            </p>
            
+           {/* Tombol Lebih Raksasa (Full width di HP, normal di PC) */}
            <Link 
               href={`/exercise/${subtopicId}`}
-              className="inline-flex items-center gap-3 px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-lg shadow-blue-600/20"
+              className="relative z-10 inline-flex items-center justify-center w-full sm:w-auto gap-3 px-10 py-5 bg-blue-600 hover:bg-blue-500 text-white text-lg font-bold rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(37,99,235,0.4)]"
            >
-              Mulai Latihan Sekarang <FiArrowRight />
+              Mulai Latihan Sekarang <FiArrowRight size={20} />
            </Link>
         </div>
 

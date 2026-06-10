@@ -1,31 +1,18 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
-import dynamic from "next/dynamic";
-import LatexRenderer from "@/components/ui/LatexRenderer";
-
 import {
-  FiAlertCircle,
-  FiCheckCircle,
-  FiTrash2,
   FiBookOpen,
-  FiEdit3,
   FiChevronRight,
   FiLoader,
+  FiPieChart,
+  FiTarget,
+  FiTrendingUp,
+  FiAward,
+  FiList
 } from "react-icons/fi";
-import { FaGem } from "react-icons/fa"; // Ikon permata dari FontAwesome
-import Link from "next/link"; // Import Link dari Next.js
-
-
-const MathKeyboard = dynamic(() => import("@/components/input/MathKeyboard"), {
-  ssr: false,
-});
-
-interface AnalysisResult {
-  isCorrect: boolean;
-  feedback: string;
-  errorStep?: number;
-}
+import { FaGem } from "react-icons/fa"; 
+import Link from "next/link";
 
 export default function LearnPage({ params }: { params: Promise<{ topicId: string }> }) {
   const { topicId } = use(params);
@@ -33,10 +20,23 @@ export default function LearnPage({ params }: { params: Promise<{ topicId: strin
 
   const [topicTitle, setTopicTitle] = useState<string>("");
   const [subtopics, setSubtopics] = useState<Array<{ id: string; title: string; level: string; content: string }>>([]);
-  const [exercisesBySubtopic, setExercisesBySubtopic] = useState<Record<string, Array<{ id: string; type: string; question: string; answer: string; explanation: string }>>>({});
   const [loadingData, setLoadingData] = useState(true);
 
+  // STATE BARU: Menyimpan sub-bab mana yang sedang dilihat analisis detailnya
+  const [selectedSubtopicId, setSelectedSubtopicId] = useState<string | null>(null);
+
   useEffect(() => {
+    // Sinkronisasi parameter URL ketika komponen pertama kali dimuat
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("view") === "latihan") {
+      setViewMode("latihan");
+    }
+    
+    const subId = urlParams.get("subtopicId");
+    if (subId) {
+      setSelectedSubtopicId(subId);
+    }
+
     const load = async () => {
       try {
         setLoadingData(true);
@@ -45,15 +45,9 @@ export default function LearnPage({ params }: { params: Promise<{ topicId: strin
         const data = await res.json();
         setTopicTitle(data?.topic?.title || "");
         setSubtopics(data?.subtopics || []);
-        const map: typeof exercisesBySubtopic = {};
-        for (const st of data?.subtopics || []) {
-          map[st.id] = data?.exercisesBySubtopic?.[st.id] || [];
-        }
-        setExercisesBySubtopic(map);
       } catch {
         setTopicTitle("");
         setSubtopics([]);
-        setExercisesBySubtopic({});
       } finally {
         setLoadingData(false);
       }
@@ -61,125 +55,58 @@ export default function LearnPage({ params }: { params: Promise<{ topicId: strin
     load();
   }, [topicId]);
 
-
-  const [steps, setSteps] = useState<string[]>([]);
-  const [currentInput, setCurrentInput] = useState("");
-  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const firstSubtopicId = subtopics[0]?.id;
-  const firstExercise = firstSubtopicId
-    ? exercisesBySubtopic[firstSubtopicId]?.[0]
-    : undefined;
-
-  const question = firstExercise?.question || "";
-
-  // explanation belum dipakai di UI saat ini (bisa ditampilkan di future)
-  // const activeExerciseExplanation = firstExercise?.explanation || "";
-
-  const sanitizeLatex = (latex: string) =>
-
-    latex.replace(/\\placeholder\{\}/g, "□").replace(/\\placeholder/g, "□");
-
-  const previewContent = sanitizeLatex(currentInput);
-
-  const hasPlaceholder = currentInput.includes("\\placeholder");
-
-  const handleAddStep = () => {
-    if (!currentInput.trim()) return;
-
-    setSteps((prev) => [...prev, currentInput]);
-    setCurrentInput("");
-    setAnalysis(null);
-  };
-
-  const removeStep = (index: number) => {
-    setSteps((prev) => prev.filter((_, i) => i !== index));
-    setAnalysis(null);
-  };
-
-  const handleAnalyze = async () => {
-    if (!steps.length) return;
-
-    setLoading(true);
-
-    try {
-      const response = await fetch("/api/ai/analyze-trace", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          steps,
-          topicId,
-          question,
-        }),
-      });
-
-      const data = await response.json();
-
-      setAnalysis(data);
-    } catch {
-      setAnalysis({
-        isCorrect: false,
-        feedback: "Gagal menghubungi AI. Silakan coba lagi.",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-[#09090b] text-zinc-100 pb-56">
-      {/* HEADER */}
+    <div className="min-h-screen bg-[#09090b] text-zinc-100 pb-56 font-sans">
+      
+      {/* HEADER TABS NAVIGATION */}
       <div className="sticky top-0 z-30 bg-[#09090b]/95 backdrop-blur border-b border-white/5">
         <div className="max-w-5xl mx-auto">
           <div className="flex">
             <button
               onClick={() => setViewMode("materi")}
-              className={`flex-1 py-4 text-sm font-bold transition ${
+              className={`flex-1 py-4 text-sm font-bold transition-all ${
                 viewMode === "materi"
-                  ? "border-b-2 border-blue-500 text-blue-400"
-                  : "text-zinc-500"
+                  ? "border-b-2 border-blue-500 text-blue-400 bg-blue-500/5"
+                  : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
               }`}>
               <div className="flex items-center justify-center gap-2">
-                <FiBookOpen />
-                Materi
+                <FiBookOpen size={16} />
+                Peta Materi
               </div>
             </button>
 
             <button
-              onClick={() => setViewMode("latihan")}
-              className={`flex-1 py-4 text-sm font-bold transition ${
+              onClick={() => {
+                setViewMode("latihan");
+                // Menghapus pilihan subtopicId di URL saat tab utama diklik manual
+                window.history.pushState({}, "", `/learn/${topicId}?view=latihan`);
+              }}
+              className={`flex-1 py-4 text-sm font-bold transition-all ${
                 viewMode === "latihan"
-                  ? "border-b-2 border-blue-500 text-blue-400"
-                  : "text-zinc-500"
+                  ? "border-b-2 border-purple-500 text-purple-400 bg-purple-500/5"
+                  : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
               }`}>
               <div className="flex items-center justify-center gap-2">
-                <FiEdit3 />
-                Latihan
+                <FiPieChart size={16} />
+                Analisis AI
               </div>
             </button>
           </div>
         </div>
       </div>
 
-{/* MODE MATERI */}
+      {/* ========================================================= */}
+      {/* MODE MATERI (ROADMAP KIRI KANAN) */}
+      {/* ========================================================= */}
       {viewMode === "materi" && (
         <div className="max-w-6xl mx-auto p-5 mt-4 md:mt-8">
-          
-          {/* Mengubah 'items-start' menjadi 'items-center' agar Kotak Kiri pas di tengah-tengah tinggi daftar kanan */}
           <div className="flex flex-col md:flex-row items-center relative gap-4 md:gap-0">
 
-            {/* ==================================================== */}
-            {/* SISI KIRI: Kotak Judul Utama (Pas di Tengah)         */}
-            {/* ==================================================== */}
+            {/* SISI KIRI: Kotak Judul Utama */}
             <div className="md:w-5/12 w-full relative z-20 md:pr-8 lg:pr-14 mb-6 md:mb-0">
               <div className="w-full bg-zinc-900/50 border border-white/5 rounded-2xl p-8 text-center shadow-xl shadow-black/40 relative">
-                {/* Aksen Gradasi */}
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-2xl" />
 
-                {/* Ikon Permata Besar */}
                 <div className="mx-auto flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 mb-5 shadow-[0_0_15px_rgba(59,130,246,0.1)]">
                   <FaGem size={26} className="animate-pulse" />
                 </div>
@@ -196,22 +123,15 @@ export default function LearnPage({ params }: { params: Promise<{ topicId: strin
                   Roadmap pembelajaran terstruktur yang di-dekomposisi khusus untukmu oleh AI.
                 </p>
 
-                {/* Garis Penghubung Horizontal ke Batang Utama Kanan */}
                 <div className="hidden md:block absolute top-1/2 -right-8 lg:-right-14 w-8 lg:w-14 h-0.5 bg-blue-500/40" />
-                {/* Titik Sambung */}
                 <div className="hidden md:block absolute top-1/2 -right-8 lg:-right-14 w-2 h-2 -mt-[3px] rounded-full bg-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.8)] z-30" />
               </div>
             </div>
 
-            {/* ==================================================== */}
-            {/* SISI KANAN: Hanya Daftar Materi (Sub Bab)            */}
-            {/* ==================================================== */}
+            {/* SISI KANAN: Daftar Materi (Kotak Rekomendasi di bawah sudah dihapus) */}
             <div className="md:w-7/12 w-full relative z-10 flex flex-col gap-4">
-              
-              {/* Garis Vertikal Hubungan (Hanya setinggi list materi) */}
               <div className="hidden md:block absolute left-0 top-8 bottom-8 w-0.5 bg-gradient-to-b from-blue-500/10 via-blue-500/30 to-blue-500/10 -ml-[1px]" />
 
-              {/* Looping List Materi */}
               {loadingData ? (
                 <div className="w-full rounded-2xl border border-white/5 bg-zinc-900/50 p-8 flex flex-col items-center justify-center gap-4 text-zinc-400 ml-0 md:ml-8 lg:ml-12">
                   <FiLoader className="animate-spin text-blue-500" size={28} />
@@ -220,24 +140,19 @@ export default function LearnPage({ params }: { params: Promise<{ topicId: strin
               ) : (
                 subtopics.map((item, index) => (
                   <div key={item.id} className="relative group pl-0 md:pl-8 lg:pl-12">
-                    
-                    {/* Garis Cabang dari Batang Utama ke Card */}
                     <div className="hidden md:block absolute top-1/2 left-0 w-8 lg:w-12 h-0.5 bg-blue-500/20 group-hover:bg-blue-500/60 transition-colors" />
                     <div className="hidden md:block absolute top-1/2 left-0 w-1.5 h-1.5 -mt-[2.5px] -ml-[2px] rounded-full bg-zinc-700 group-hover:bg-blue-500 transition-colors" />
 
-                    {/* Card Materi */}
                     <Link
                       href={`/materi-detail/${item.id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-4 rounded-2xl border border-white/5 bg-zinc-900/50 p-4 hover:-translate-y-1 hover:shadow-[0_8px_20px_rgba(59,130,246,0.1)] hover:border-blue-500/40 transition-all duration-300"
                     >
-                      {/* Ikon Permata */}
                       <div className="flex-shrink-0 flex items-center justify-center w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 group-hover:bg-blue-500/20 group-hover:scale-110 transition-all">
                         <FaGem size={20} />
                       </div>
 
-                      {/* Konten Judul & Deskripsi 1 Baris */}
                       <div className="flex-1 min-w-0">
                         <span className="text-[10px] text-zinc-500 font-bold block mb-0.5 uppercase tracking-wider">
                           Sub Bab {index + 1}
@@ -250,7 +165,6 @@ export default function LearnPage({ params }: { params: Promise<{ topicId: strin
                         </p>
                       </div>
 
-                      {/* Panah Kanan */}
                       <div className="flex-shrink-0 text-zinc-600 group-hover:text-blue-400 transition-colors group-hover:translate-x-1 duration-300">
                         <FiChevronRight size={20} />
                       </div>
@@ -260,144 +174,190 @@ export default function LearnPage({ params }: { params: Promise<{ topicId: strin
               )}
             </div>
 
-          </div> {/* Akhir dari flex kolom kiri-kanan */}
-
-          {/* ==================================================== */}
-          {/* BAGIAN BAWAH: Kotak Latihan Memanjang Penuh (w-full) */}
-          {/* ==================================================== */}
-          <div className="w-full bg-blue-950/20 border border-blue-500/20 rounded-2xl p-6 text-center shadow-lg shadow-blue-900/10 mt-8">
-            <h3 className="font-semibold text-blue-400 mb-2 flex items-center justify-center gap-2">
-              <FiAlertCircle /> Rekomendasi AI
-            </h3>
-            <p className="text-sm text-zinc-400 max-w-2xl mx-auto">
-              Selesaikan semua materi di atas secara berurutan, lalu klik tombol di bawah untuk mulai menguji pemahaman kognitif Anda melalui latihan soal interaktif.
-            </p>
-            <button
-              onClick={() => setViewMode("latihan")}
-              className="mt-5 w-full md:w-auto min-w-[240px] rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white hover:bg-blue-500 shadow-md shadow-blue-600/20 transition-all active:scale-95">
-              Mulai Latihan Soal
-            </button>
           </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODE ANALISIS (BERIKUT FITUR DAFTAR PER SUB-BAB MATERI) */}
+      {/* ========================================================= */}
+      {viewMode === "latihan" && (
+        <div className="max-w-4xl mx-auto p-5 mt-4 md:mt-8 space-y-6 animate-in fade-in slide-in-from-bottom-4">
+          
+          {selectedSubtopicId === null ? (
+            /* --- TAMPILAN 1: DAFTAR ANALISIS UTAMA PER SUB-BAB MATERI --- */
+            <div className="bg-zinc-900/50 border border-white/5 rounded-3xl p-6 md:p-8 shadow-xl">
+              <div className="flex items-center gap-3 mb-4">
+                <FiList className="text-purple-400" size={24} />
+                <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight">
+                  Daftar Penguasaan Materi Latihan
+                </h2>
+              </div>
+              <p className="text-zinc-400 text-sm mb-8 leading-relaxed">
+                Pilih salah satu sub-bab di bawah ini untuk melihat roadmap rekomendasi belajar kustom dari AI berdasarkan tingkat akurasi jawaban esai dan pilihan ganda Anda.
+              </p>
+
+              <div className="flex flex-col gap-4">
+                {subtopics.map((item, index) => {
+                  // Ambil data nilai tersimpan lokal per subtopicId
+                  const scoreStr = localStorage.getItem(`mastery_${item.id}`);
+                  const scoreNum = scoreStr ? parseInt(scoreStr, 10) : null;
+
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setSelectedSubtopicId(item.id);
+                        // Perbarui URL agar sinkron
+                        window.history.pushState({}, "", `/learn/${topicId}?view=latihan&subtopicId=${item.id}`);
+                      }}
+                      className="w-full flex items-center justify-between gap-4 rounded-2xl border border-white/5 bg-zinc-900/40 p-5 hover:border-purple-500/40 hover:bg-purple-500/5 transition-all text-left group"
+                    >
+                      <div className="flex items-center gap-4 min-w-0">
+                        <div className="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 group-hover:bg-purple-500/20 font-bold text-sm">
+                          {index + 1}
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-white text-base group-hover:text-purple-400 transition-colors truncate">
+                            {item.title}
+                          </h3>
+                          <p className="text-xs text-zinc-500 uppercase tracking-wider font-medium mt-0.5">
+                            Sub-Bab Pembelajaran
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <span className={`text-base md:text-lg font-black tracking-wide ${
+                          scoreNum !== null 
+                            ? scoreNum >= 80 ? "text-green-400" : scoreNum >= 50 ? "text-yellow-400" : "text-red-400"
+                            : "text-zinc-600"
+                        }`}>
+                          {scoreNum !== null ? `${scoreNum}%` : "Belum Latihan"}
+                        </span>
+                        <FiChevronRight size={18} className="text-zinc-600 group-hover:text-purple-400 transition-all" />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            /* --- TAMPILAN 2: DETAIL ROADMAP & REKOMENDASI (SETELAH KOTAK DIKLIK) --- */
+            (() => {
+              const currentSubtopic = subtopics.find((st) => st.id === selectedSubtopicId);
+              const scoreStr = localStorage.getItem(`mastery_${selectedSubtopicId}`);
+              const scoreNum = scoreStr ? parseInt(scoreStr, 10) : 0;
+
+              // Hitung kategori performa secara dinamis
+              let category = "Perlu Peningkatan";
+              let badgeColor = "bg-red-500/10 text-red-400 border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)]";
+              let recText = `Sistem mendeteksi bahwa pemahaman konsep Anda pada sub-bab "${currentSubtopic?.title || "Materi"}" masih memerlukan peningkatan materi dasar. Pelajari kembali materi lewat roadmap di bawah ini.`;
+              let scoreColor = "from-red-400 to-orange-400";
+
+              if (scoreNum >= 80) {
+                category = "Sangat Baik";
+                badgeColor = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]";
+                recText = `Luar biasa! Anda telah menguasai sub-bab "${currentSubtopic?.title || "Materi"}" dengan nilai yang sangat fantastis. Ikuti roadmap sisa berikut untuk menyempurnakan kompetensi.`;
+                scoreColor = "from-emerald-400 to-teal-400";
+              } else if (scoreNum >= 50) {
+                category = "Cukup Baik";
+                badgeColor = "bg-yellow-500/10 text-yellow-400 border-yellow-500/20 shadow-[0_0_15px_rgba(234,179,8,0.1)]";
+                recText = `Pemahaman Anda pada sub-bab "${currentSubtopic?.title || "Materi"}" sudah lumayan matang, namun terdapat beberapa celah esai/teori yang terlewat. Sangat disarankan untuk meninjau kembali.`;
+                scoreColor = "from-yellow-400 to-amber-400";
+              }
+
+              return (
+                <div className="space-y-6">
+                  {/* Tombol kembali ke list utama daftar sub-bab */}
+                  <button
+                    onClick={() => {
+                      setSelectedSubtopicId(null);
+                      window.history.pushState({}, "", `/learn/${topicId}?view=latihan`);
+                    }}
+                    className="inline-flex items-center gap-2 text-sm font-medium text-zinc-400 hover:text-white transition-colors"
+                  >
+                    ← Kembali ke Daftar Analisis
+                  </button>
+
+                  {/* HEADER KOTAK PRESENTASE */}
+                  <div className="bg-gradient-to-b from-purple-900/20 to-blue-900/10 border border-purple-500/20 rounded-[2rem] p-8 md:p-12 text-center shadow-2xl relative overflow-hidden">
+                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[120%] md:w-full h-1/2 bg-purple-500/10 blur-[60px] rounded-full pointer-events-none"></div>
+                     
+                     <h2 className="text-2xl md:text-3xl font-extrabold text-white mb-2 relative z-10 tracking-tight">
+                       Analisis: {currentSubtopic?.title}
+                     </h2>
+                     <p className="text-zinc-300 text-sm md:text-base max-w-2xl mx-auto relative z-10 leading-relaxed">
+                       Rangkuman performa kognitif Anda khusus pada pengerjaan instrumen latihan sub-bab materi ini.
+                     </p>
+                     
+                     <div className="mt-8 relative z-10 flex flex-col items-center">
+                       <div className={`text-6xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r ${scoreColor} mb-3 drop-shadow-[0_0_30px_rgba(168,85,247,0.3)]`}>
+                         {scoreNum}%
+                       </div>
+                       <div className={`flex items-center gap-2 px-5 py-2 rounded-full border font-bold text-sm tracking-wider uppercase ${badgeColor}`}>
+                         <FiAward size={18} /> Kategori: {category}
+                       </div>
+                     </div>
+                  </div>
+
+                  {/* ROADMAP REKOMENDASI BELAJAR */}
+                  <div className="bg-zinc-900/80 border border-white/5 rounded-3xl p-6 md:p-10 shadow-xl relative overflow-hidden">
+                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-purple-500 to-blue-500"></div>
+
+                     <h3 className="text-xl md:text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                       <FiTrendingUp className="text-purple-400" size={24} /> 
+                       Roadmap & Rekomendasi Belajar
+                     </h3>
+                     
+                     <p className="text-zinc-400 mb-8 leading-relaxed text-base md:text-lg">
+                       {recText}
+                     </p>
+                     
+                     <div className="relative pl-8 md:pl-10 border-l-2 border-purple-500/20 space-y-10">
+                       
+                       <div className="relative group">
+                         <div className="absolute -left-[41px] md:-left-[49px] top-1 w-5 h-5 rounded-full bg-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.6)] flex items-center justify-center ring-4 ring-[#09090b]">
+                           <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                         </div>
+                         <h4 className="font-bold text-lg md:text-xl text-white group-hover:text-purple-300 transition-colors">
+                           1. Evaluasi Kunci Jawaban
+                         </h4>
+                         <p className="text-zinc-400 mt-2 leading-relaxed">
+                           Tinjau ulang lembar hasil evaluasi pengerjaan Anda. Perhatikan poin-poin penjelasan singkat yang dikeluarkan AI untuk meluruskan pemahaman yang kurang tepat.
+                         </p>
+                       </div>
+
+                       <div className="relative group">
+                         <div className="absolute -left-[41px] md:-left-[49px] top-1 w-5 h-5 rounded-full bg-zinc-700 border border-zinc-500 flex items-center justify-center ring-4 ring-[#09090b]"></div>
+                         <h4 className="font-bold text-lg md:text-xl text-white group-hover:text-blue-300 transition-colors">
+                           2. Konsolidasi via Chat AI Inline
+                         </h4>
+                         <p className="text-zinc-400 mt-2 leading-relaxed">
+                           Jika Anda memiliki keraguan mengenai struktur rumus atau penjabaran materi, manfaatkan kolom *Tanya Jawab AI* di dalam lembar bacaan sub-bab materi tersebut.
+                         </p>
+                       </div>
+
+                       <div className="relative group">
+                         <div className="absolute -left-[41px] md:-left-[49px] top-1 w-5 h-5 rounded-full bg-zinc-700 border border-zinc-500 flex items-center justify-center ring-4 ring-[#09090b]"></div>
+                         <h4 className="font-bold text-lg md:text-xl text-white group-hover:text-blue-300 transition-colors flex items-center gap-2">
+                           3. Penguasaan Peta Konsep <FiTarget className="text-red-400" />
+                         </h4>
+                         <p className="text-zinc-400 mt-2 leading-relaxed">
+                           Setelah mematangkan materi ini, Anda dipersilakan melanjutkan rute eksplorasi ke sub-bab pembelajaran berikutnya demi mencetak penguasaan topik 100%.
+                         </p>
+                       </div>
+
+                     </div>
+                  </div>
+                </div>
+              );
+            })()
+          )}
 
         </div>
       )}
 
-      {/* MODE LATIHAN */}
-      {viewMode === "latihan" && (
-        <>
-          <div className="border-b border-white/5 bg-zinc-950/50 p-6">
-            <div className="max-w-4xl mx-auto">
-              <div className="rounded-2xl bg-zinc-900/50 border border-white/5 p-6">
-                <div className="flex justify-between mb-4">
-                  <span className="text-xs uppercase text-zinc-500 font-bold">
-                    Latihan Thinking Trace
-                  </span>
-
-                  <span className="px-2 py-1 rounded-full text-[10px] bg-blue-500/10 border border-blue-500/20 text-blue-400">
-                    AI Active
-                  </span>
-                </div>
-
-                <div className="text-center text-3xl">
-                  <LatexRenderer content={question} />
-                </div>
-
-                {loadingData && (
-                  <div className="mt-4 flex items-center gap-2 justify-center text-zinc-400">
-                    <FiLoader className="animate-spin" />
-                    Memuat latihan...
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-
-          {currentInput && (
-            <div className="max-w-4xl mx-auto p-4">
-              <div className="rounded-xl border border-blue-900/30 bg-blue-950/20 p-4">
-                <div className="text-lg">
-                  <LatexRenderer content={previewContent} />
-                </div>
-
-                {hasPlaceholder && (
-                  <p className="mt-2 text-xs text-amber-400">
-                    Lengkapi ekspresi matematika terlebih dahulu.
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div className="max-w-4xl mx-auto p-4 space-y-4">
-            {steps.map((step, index) => {
-              const isError = analysis?.errorStep === index + 1;
-
-              return (
-                <div
-                  key={index}
-                  className={`rounded-xl border p-4 ${
-                    isError
-                      ? "border-red-500 bg-red-950/20"
-                      : "border-white/5 bg-zinc-900/50"
-                  }`}>
-                  <div className="flex justify-between mb-3">
-                    <span className="text-xs text-zinc-500">
-                      Langkah {index + 1}
-                    </span>
-
-                    <button onClick={() => removeStep(index)}>
-                      <FiTrash2 />
-                    </button>
-                  </div>
-
-                  <LatexRenderer content={step} />
-                </div>
-              );
-            })}
-
-            {analysis?.isCorrect && (
-              <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/20 p-4">
-                <div className="flex items-center gap-2 text-emerald-400 font-semibold">
-                  <FiCheckCircle />
-                  Analisis AI
-                </div>
-
-                <p className="mt-2 text-sm">{analysis.feedback}</p>
-              </div>
-            )}
-
-            {analysis && !analysis.isCorrect && !analysis.errorStep && (
-              <div className="rounded-xl border border-red-500/20 bg-red-950/20 p-4">
-                <div className="flex items-center gap-2 text-red-400 font-semibold">
-                  <FiAlertCircle />
-                  Analisis AI
-                </div>
-
-                <p className="mt-2 text-sm">{analysis.feedback}</p>
-              </div>
-            )}
-          </div>
-
-          <div className="fixed bottom-0 left-0 right-0 border-t border-white/5 bg-[#09090b]/90 backdrop-blur">
-            <div className="max-w-4xl mx-auto p-4 flex gap-3">
-              <button
-                onClick={handleAddStep}
-                className="flex-1 rounded-xl bg-zinc-800 py-3">
-                Tambah Langkah
-              </button>
-
-              <button
-                onClick={handleAnalyze}
-                className="flex-1 rounded-xl bg-blue-600 py-3">
-                {loading ? "Menganalisis..." : "Analisis Thinking Trace"}
-              </button>
-            </div>
-          </div>
-
-          <MathKeyboard onInput={(latex) => setCurrentInput(latex)} />
-        </>
-      )}
     </div>
   );
 }

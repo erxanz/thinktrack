@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { FiSend, FiLoader, FiUser, FiCpu } from "react-icons/fi";
+import LatexRenderer from "../ui/LatexRenderer"; // <-- Import sudah dipasang di sini
 
 interface MateriInlineChatProps {
   materiTitle?: string;
@@ -75,8 +76,7 @@ Jawablah pertanyaan user dengan jelas, ringkas, dan mudah dipahami. Jika pertany
   return (
     <div className="font-sans">
       
-      {/* --- AREA RIWAYAT CHAT (Bisa Digulir bersama Materi) --- */}
-      {/* pb-36 memberikan ruang kosong di bawah agar pesan tidak tertutup bar input statis */}
+      {/* --- AREA RIWAYAT CHAT --- */}
       <div className="mt-12 border-t border-white/5 pt-8 pb-36">
         
         {messages.length > 0 && (
@@ -107,7 +107,12 @@ Jawablah pertanyaan user dengan jelas, ringkas, dan mudah dipahami. Jika pertany
               <div className={`text-base leading-relaxed whitespace-pre-wrap ${
                 msg.role === "user" ? "text-zinc-300" : "text-zinc-200"
               }`}>
-                {msg.content}
+                {/* --- PERBAIKAN: Gunakan LatexRenderer di sini --- */}
+                {msg.role === "ai" ? (
+                  <LatexRenderer content={msg.content} />
+                ) : (
+                  msg.content
+                )}
               </div>
             </div>
           ))}
@@ -125,7 +130,7 @@ Jawablah pertanyaan user dengan jelas, ringkas, dan mudah dipahami. Jika pertany
         </div>
       </div>
 
-      {/* --- AREA INPUT CHAT (Statis / Fixed di Bawah Layar) --- */}
+      {/* --- AREA INPUT CHAT --- */}
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#09090b]/90 backdrop-blur-xl border-t border-white/10 px-4 py-4 md:py-6">
         <div className="max-w-3xl mx-auto relative">
           <div className="bg-[#141414] border border-white/10 rounded-2xl p-2 focus-within:border-Blue-500/50 focus-within:ring-1 focus-within:ring-Blue-500/20 transition-all shadow-lg">
@@ -140,7 +145,7 @@ Jawablah pertanyaan user dengan jelas, ringkas, dan mudah dipahami. Jika pertany
                   }
                 }}
                 placeholder="Tanyakan sesuatu tentang materi ini..."
-                className="flex-1 bg-transparent px-3 py-2 text-sm md:text-base text-zinc-200 outline-none placeholder-zinc-600 resize-none max-h-32 min-h-[44px] custom-scrollbar"
+                className="flex-1 bg-transparent px-3 py-2 text-sm md:text-base text-zinc-200 outline-none placeholder-zinc-600 resize-none max-h-32 min-h-11 custom-scrollbar"
                 rows={1}
                 disabled={isLoading}
               />

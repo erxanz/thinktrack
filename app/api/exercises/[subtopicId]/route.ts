@@ -22,19 +22,25 @@ export async function GET(
       );
     }
 
-    // PERBAIKAN 1: Sesuaikan format JSON di prompt dengan schema model Exercise
-    const prompt = `Anda adalah Tutor AI ThinkTrack EdTech. Buat 5 soal latihan berdasarkan materi ini:
+    // PERBAIKAN: Instruksi ke AI diubah agar membuat soal Pilihan Ganda DAN Esai!
+    const prompt = `Anda adalah Tutor AI ThinkTrack EdTech. Buat total 5 soal latihan berdasarkan materi ini, yang terdiri dari 2 soal Pilihan Ganda dan 3 soal Esai.
 Judul: "${subtopic.title}"
 Isi: "${subtopic.content}"
 
 Wajib berikan jawaban dalam format JSON murni (array of objects), TIDAK BOLEH ada teks lain, markdown, atau pembuka/penutup.
-Format:
+Format JSON yang WAJIB digunakan:
 [
   {
     "type": "pilihan ganda",
-    "question": "Pertanyaan soal... (Sertakan opsi A, B, C, D di dalam teks pertanyaan jika ini pilihan ganda)",
-    "answer": "Kunci jawaban",
+    "question": "Pertanyaan soal... (Sertakan opsi A. , B. , C. , D. di dalam teks pertanyaan)",
+    "answer": "Kunci jawaban (Misalnya: A. Jawaban)",
     "explanation": "Penjelasan mengapa jawaban tersebut benar"
+  },
+  {
+    "type": "Esai",
+    "question": "Pertanyaan soal esai yang membutuhkan analisa atau penjelasan dari materi di atas...",
+    "answer": "Kunci jawaban / poin-poin penting yang harus ada",
+    "explanation": "Penjelasan lengkap untuk evaluasi jawaban"
   }
 ]`;
 
@@ -56,7 +62,6 @@ Format:
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          // PERBAIKAN 2: Gunakan model terbaru yang sama dengan route generate topics
           model: "llama-3.3-70b-versatile",
           messages: [{ role: "user", content: prompt }],
           temperature: 0.7,
@@ -71,14 +76,12 @@ Format:
     const data = await response.json();
     const content = data.choices[0].message.content;
 
-    // PERBAIKAN 3: Bersihkan tag markdown sebelum melakukan parse
     const jsonString = content.replace(/```json|```/gi, "").trim();
 
     let generatedQuestions;
     try {
       generatedQuestions = JSON.parse(jsonString);
     } catch (e) {
-      // Fallback pemotongan string jika masih terdapat teks selain array JSON
       const start = jsonString.indexOf("[");
       const end = jsonString.lastIndexOf("]");
       if (start !== -1 && end !== -1) {
@@ -88,12 +91,13 @@ Format:
       }
     }
 
-    // PERBAIKAN 4: Simpan soal yang di-generate ke database
+    // Simpan soal yang di-generate ke database
     const savedExercises = await Promise.all(
       generatedQuestions.map((q: any) =>
         prisma.exercise.create({
           data: {
             subtopicId: subtopic.id,
+            // Jika tipe dari AI tidak ada, default ke pilihan ganda
             type: q.type || "pilihan ganda",
             question: q.question || "",
             answer: q.answer || "",
@@ -105,7 +109,7 @@ Format:
 
     return NextResponse.json({
       subtopicId,
-      questions: savedExercises, // Mengembalikan data dengan ID dari database
+      questions: savedExercises, 
     });
   } catch (error: any) {
     console.error("Error Groq API:", error);
