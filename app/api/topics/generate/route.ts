@@ -185,23 +185,27 @@ export async function POST(req: Request) {
       throw new Error("AI returned empty response");
     }
 
-    console.log("=== RAW AI OUTPUT ===");
+    console.log("START RAW AI OUTPUT");
     console.log(rawText);
-    console.log("=====================");
+    console.log("END RAW AI OUTPUT");
+
+    // Bersihkan teks dari Markdown terlebih dahulu
+    const cleanedText = rawText.replace(/```json|```/gi, "").trim();
 
     let parsed: any;
 
     try {
-      parsed = JSON.parse(rawText);
+      parsed = JSON.parse(cleanedText);
     } catch {
-      const start = rawText.indexOf("{");
-      const end = rawText.lastIndexOf("}");
+      // Fallback index manual
+      const start = cleanedText.indexOf("{");
+      const end = cleanedText.lastIndexOf("}");
 
       if (start === -1 || end === -1) {
         throw new Error("AI output is not valid JSON");
       }
 
-      parsed = JSON.parse(rawText.slice(start, end + 1));
+      parsed = JSON.parse(cleanedText.slice(start, end + 1));
     }
 
     const createdSubtopics = await Promise.all(

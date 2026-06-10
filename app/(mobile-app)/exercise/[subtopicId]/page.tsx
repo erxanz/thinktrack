@@ -1,221 +1,208 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useEffect, use } from "react";
-import {
-  FiX,
-  FiCheck,
-  FiAlertCircle,
-  FiArrowRight,
-  FiLoader,
-} from "react-icons/fi";
-import { useRouter } from "next/navigation";
-import ReactMarkdown from "react-markdown";
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
-export default function ExercisePage({
-  params,
-}: {
-  params: Promise<{ subtopicId: string }>;
-}) {
-  const { subtopicId } = use(params);
-  const router = useRouter();
+// Fungsi untuk mengekstrak A, B, C, D dari teks panjang soal AI
+function parseQuestionData(rawText: string) {
+  // Mencari pola pemisah seperti "A.", "B.", "C.", "D." atau "A)", "B)", "C)", "D)"
+  const parts = rawText.split(/(?=[A-D][.)]\s)/);
+
+  // Jika AI mengembalikan 1 teks soal utama + 4 opsi, kita pisahkan
+  if (parts.length >= 5) {
+    return {
+      mainText: parts[0].trim(),
+      options: [
+        { id: "A", text: parts[1].trim() },
+        { id: "B", text: parts[2].trim() },
+        { id: "C", text: parts[3].trim() },
+        { id: "D", text: parts[4].trim() },
+      ],
+    };
+  }
+
+  // Jika gagal diekstrak (format AI tidak terduga), kembalikan seperti semula
+  return { mainText: rawText, options: null };
+}
+
+export default function ExercisePage() {
+  const params = useParams();
+  const subtopicId = params.subtopicId as string;
 
   const [questions, setQuestions] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
-  const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
-  const [score, setScore] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const [selectedPgOption, setSelectedPgOption] = useState<string>("");
+  const [essayAnswer, setEssayAnswer] = useState<string>("");
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/exercises/${subtopicId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setQuestions(data?.questions || []);
-      })
-      .catch((err) => {
-        console.error("Gagal mengambil data soal:", err);
-        setQuestions([]);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+    async function fetchQuestions() {
+      try {
+        const res = await fetch(`/api/exercises/${subtopicId}`);
+        const data = await res.json();
+        if (data.questions) {
+          setQuestions(data.questions);
+        }
+      } catch (error) {
+        console.error("Gagal memuat soal", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchQuestions();
   }, [subtopicId]);
 
-  const handleCheck = () => {
-    if (!selectedAnswer) return;
-
-    const correct = selectedAnswer === questions[currentIndex]?.answer;
-
-    setIsCorrect(correct);
-
-    if (correct) {
-      setScore((prev) => prev + 20);
-    }
-  };
-
-  const handleNext = () => {
-    if (currentIndex < questions.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
-      setSelectedAnswer(null);
-      setIsCorrect(null);
-      return;
-    }
-
-    alert(`🎉 Latihan Selesai!\n\nSkor Kamu: ${score}`);
-    router.back();
-  };
-
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#09090b] flex items-center justify-center">
-        <FiLoader className="animate-spin text-blue-500" size={40} />
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-gray-400 text-lg animate-pulse">
+          Memuat soal latihan...
+        </div>
       </div>
     );
   }
 
   if (!questions.length) {
     return (
-      <div className="min-h-screen bg-[#09090b] text-white flex flex-col items-center justify-center p-6 text-center">
-        <FiAlertCircle size={48} className="text-zinc-500 mb-4" />
-
-        <h2 className="text-xl font-bold mb-2">Soal Tidak Ditemukan</h2>
-
-        <p className="text-zinc-400 mb-6">
-          Belum ada soal latihan untuk materi ini atau terjadi kesalahan pada
-          server.
-        </p>
-
-        <button
-          onClick={() => router.back()}
-          className="px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-semibold rounded-xl transition-colors">
-          Kembali
-        </button>
+      <div className="p-4 text-center text-gray-400">
+        Belum ada soal untuk materi ini.
       </div>
     );
   }
 
-  const currentQ = questions[currentIndex];
+  const currentQuestion = questions[currentIndex];
+  const isMultipleChoice = currentQuestion.type.toLowerCase().includes("ganda");
 
-  if (!currentQ) {
-    return null;
-  }
+  // Ekstrak pertanyaan dan opsi
+  const parsedData = parseQuestionData(currentQuestion.question);
 
-  const progress = ((currentIndex + 1) / questions.length) * 100;
+  const handleSubmit = () => setIsSubmitted(true);
+
+  const handleNext = () => {
+    setIsSubmitted(false);
+    setSelectedPgOption("");
+    setEssayAnswer("");
+    setCurrentIndex((prev) => prev + 1);
+  };
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-white flex flex-col">
-      {/* Header */}
-      <div className="p-4 flex items-center gap-4">
-        <button
-          onClick={() => router.back()}
-          className="text-zinc-500 hover:text-white transition-colors">
-          <FiX size={24} />
-        </button>
-
-        <div className="flex-1 h-3 bg-zinc-800 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-emerald-500 transition-all duration-500"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
+    // Gunakan text-white agar semua teks default menjadi putih (karena background hitam)
+    <div className="flex flex-col min-h-screen p-4 pb-20 max-w-md mx-auto text-gray-100">
+      {/* Header Progress */}
+      <div className="mb-6 flex justify-between items-center text-sm border-b border-gray-700 pb-3">
+        <span className="text-gray-400">
+          Soal {currentIndex + 1} dari {questions.length}
+        </span>
+        <span className="uppercase font-bold tracking-wider text-blue-400 bg-blue-900/30 px-3 py-1 rounded-full">
+          {currentQuestion.type}
+        </span>
       </div>
 
-      {/* Soal */}
-      <div className="flex-1 max-w-2xl mx-auto w-full px-6 py-10">
-        <div className="markdown-preview mb-8">
-          <ReactMarkdown>{currentQ.question || ""}</ReactMarkdown>
-        </div>
-
-        {/* Pilihan Jawaban */}
-        <div className="space-y-4">
-          {currentQ.options?.map((opt: string, index: number) => (
-            <button
-              key={`${index}-${opt}`}
-              onClick={() => isCorrect === null && setSelectedAnswer(opt)}
-              disabled={isCorrect !== null}
-              className={`w-full p-5 rounded-2xl border-2 text-left transition-all
-                ${
-                  selectedAnswer === opt
-                    ? "border-blue-500 bg-blue-500/10"
-                    : "border-white/5 bg-zinc-900/50 hover:bg-zinc-800"
-                }
-                ${
-                  isCorrect !== null && opt === currentQ.answer
-                    ? "border-emerald-500 bg-emerald-500/10"
-                    : ""
-                }
-                ${
-                  isCorrect === false && selectedAnswer === opt
-                    ? "border-red-500 bg-red-500/10"
-                    : ""
-                }`}>
-              <div className="markdown-preview [&_p]:mb-0">
-                <ReactMarkdown
-                  components={{
-                    p: ({ children }) => <span>{children}</span>,
-                  }}>
-                  {opt}
-                </ReactMarkdown>
-              </div>
-            </button>
-          ))}
-        </div>
+      {/* Teks Pertanyaan Utama */}
+      <div className="bg-gray-800 p-5 rounded-xl shadow-lg mb-6 border border-gray-700">
+        <p className="text-lg whitespace-pre-wrap leading-relaxed">
+          {parsedData.mainText}
+        </p>
       </div>
 
-      {/* Footer */}
-      <div
-        className={`p-6 border-t border-white/5 ${
-          isCorrect === true
-            ? "bg-emerald-900/20"
-            : isCorrect === false
-              ? "bg-red-900/20"
-              : "bg-[#09090b]"
-        }`}>
-        <div className="max-w-2xl mx-auto flex items-center justify-between gap-6">
-          <div className="flex-1">
-            {isCorrect === true && (
-              <p className="text-emerald-400 font-bold flex items-center gap-2">
-                <FiCheck />
-                Luar Biasa! Jawaban Benar.
-              </p>
-            )}
-
-            {isCorrect === false && (
-              <div>
-                <p className="text-red-400 font-bold flex items-center gap-2 mb-2">
-                  <FiAlertCircle />
-                  Kurang Tepat. Jawaban Benar:
-                </p>
-
-                <div className="markdown-preview">
-                  <ReactMarkdown>{currentQ.answer || ""}</ReactMarkdown>
-                </div>
+      {/* AREA INPUT JAWABAN */}
+      <div className="mb-6 flex-grow">
+        {!isSubmitted ? (
+          <>
+            {isMultipleChoice ? (
+              // INPUT PILIHAN GANDA: Ubah menjadi 1 kolom menurun (grid-cols-1) agar teks panjang muat
+              <div className="flex flex-col gap-3">
+                {parsedData.options ? (
+                  // Jika teks berhasil dipisah, tampilkan opsi beserta isinya
+                  parsedData.options.map((opt) => (
+                    <button
+                      key={opt.id}
+                      onClick={() => setSelectedPgOption(opt.id)}
+                      className={`p-4 rounded-xl border-2 text-left transition-all ${
+                        selectedPgOption === opt.id
+                          ? "border-blue-500 bg-blue-900/40 text-blue-100 shadow-[0_0_15px_rgba(59,130,246,0.3)]"
+                          : "border-gray-700 bg-gray-800 text-gray-300 hover:border-gray-500 hover:bg-gray-750"
+                      }`}>
+                      {opt.text}
+                    </button>
+                  ))
+                ) : (
+                  // Fallback jika AI gagal memberi format A., B., C., D. secara standar
+                  <div className="grid grid-cols-2 gap-3">
+                    {["A", "B", "C", "D"].map((opt) => (
+                      <button
+                        key={opt}
+                        onClick={() => setSelectedPgOption(opt)}
+                        className={`p-4 rounded-xl border-2 font-bold transition-all ${
+                          selectedPgOption === opt
+                            ? "border-blue-500 bg-blue-900/40 text-blue-100"
+                            : "border-gray-700 bg-gray-800 text-gray-300"
+                        }`}>
+                        Opsi {opt}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
+            ) : (
+              // INPUT ESAI
+              <textarea
+                value={essayAnswer}
+                onChange={(e) => setEssayAnswer(e.target.value)}
+                placeholder="Ketik jawaban Anda di sini..."
+                className="w-full min-h-[150px] p-4 bg-gray-800 border-2 border-gray-700 rounded-xl text-gray-100 placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all"
+              />
             )}
+
+            <Button
+              onClick={handleSubmit}
+              disabled={
+                isMultipleChoice ? !selectedPgOption : !essayAnswer.trim()
+              }
+              className="w-full mt-6 bg-blue-600 hover:bg-blue-500 text-white p-6 rounded-xl font-bold text-lg transition-colors disabled:bg-gray-700 disabled:text-gray-500">
+              Periksa Jawaban
+            </Button>
+          </>
+        ) : (
+          // AREA HASIL & PENJELASAN
+          <div className="bg-gray-800 p-6 rounded-xl border border-blue-500/50 shadow-[0_0_20px_rgba(59,130,246,0.15)] animate-in fade-in slide-in-from-bottom-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-2 h-6 bg-blue-500 rounded-full"></div>
+              <h3 className="font-bold text-blue-400 text-lg">Kunci Jawaban</h3>
+            </div>
+            <p className="font-semibold text-xl mb-6 text-white bg-gray-900 p-3 rounded-lg border border-gray-700">
+              {currentQuestion.answer}
+            </p>
+
+            <h3 className="font-bold text-gray-400 mb-2">Penjelasan:</h3>
+            <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">
+              {currentQuestion.explanation}
+            </p>
           </div>
-
-          {isCorrect === null ? (
-            <button
-              disabled={!selectedAnswer}
-              onClick={handleCheck}
-              className="px-10 py-4 bg-blue-600 disabled:opacity-30 disabled:cursor-not-allowed text-white font-bold rounded-2xl transition-all">
-              PERIKSA
-            </button>
-          ) : (
-            <button
-              onClick={handleNext}
-              className={`px-10 py-4 ${
-                isCorrect
-                  ? "bg-emerald-600 hover:bg-emerald-700"
-                  : "bg-red-600 hover:bg-red-700"
-              } text-white font-bold rounded-2xl flex items-center gap-2 transition-colors`}>
-              LANJUT
-              <FiArrowRight />
-            </button>
-          )}
-        </div>
+        )}
       </div>
+
+      {/* Tombol Navigasi Lanjut */}
+      {isSubmitted && currentIndex < questions.length - 1 && (
+        <Button
+          onClick={handleNext}
+          className="w-full bg-green-600 hover:bg-green-500 text-white p-6 rounded-xl font-bold text-lg mt-4 shadow-lg shadow-green-900/20">
+          Soal Selanjutnya
+        </Button>
+      )}
+
+      {/* Tombol Selesai */}
+      {isSubmitted && currentIndex === questions.length - 1 && (
+        <Button
+          onClick={() => alert("Latihan Selesai!")}
+          className="w-full bg-purple-600 hover:bg-purple-500 text-white p-6 rounded-xl font-bold text-lg mt-4 shadow-lg shadow-purple-900/20">
+          Selesai Latihan
+        </Button>
+      )}
     </div>
   );
 }
