@@ -2,23 +2,27 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation"; 
+import { useParams, useRouter } from "next/navigation"; 
 import { Button } from "@/components/ui/button";
 import { FiArrowLeft, FiCheckCircle, FiXCircle, FiRotateCcw } from "react-icons/fi";
 
+// Fungsi untuk mengekstrak A, B, C, D yang LEBIH KUAT
 function parseQuestionData(rawText: string) {
-  const parts = rawText.split(/(?=[A-D][.)]\s)/);
+  // Regex memotong berdasar huruf A-D yg diikuti titik atau kurung tutup, dengan/tanpa spasi.
+  const parts = rawText.split(/(?=[A-D][.)]\s*)/);
+
   if (parts.length >= 5) {
     return {
       mainText: parts[0].trim(),
       options: [
-        { id: "A", text: parts[1].trim() },
-        { id: "B", text: parts[2].trim() },
-        { id: "C", text: parts[3].trim() },
-        { id: "D", text: parts[4].trim() },
+        { id: "A", text: parts[1].replace(/^[A-D][.)]\s*/, '').trim() },
+        { id: "B", text: parts[2].replace(/^[A-D][.)]\s*/, '').trim() },
+        { id: "C", text: parts[3].replace(/^[A-D][.)]\s*/, '').trim() },
+        { id: "D", text: parts[4].replace(/^[A-D][.)]\s*/, '').trim() },
       ],
     };
   }
+
   return { mainText: rawText, options: null };
 }
 
@@ -54,7 +58,6 @@ export default function ExercisePage() {
   const [essayAnswer, setEssayAnswer] = useState<string>("");
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  // STATE BARU: Merekam jawaban riil user & Status Review
   const [scores, setScores] = useState<number[]>([]);
   const [userAnswersData, setUserAnswersData] = useState<string[]>([]);
   const [isReviewMode, setIsReviewMode] = useState(false);
@@ -70,7 +73,6 @@ export default function ExercisePage() {
         const subtopicData = await subtopicRes.json();
         if (subtopicData?.topicId) setTopicId(subtopicData.topicId);
 
-        // Cek apakah user sudah pernah mengerjakan soal ini
         const savedScore = localStorage.getItem(`mastery_${subtopicId}`);
         const savedAnswers = localStorage.getItem(`answers_${subtopicId}`);
         
@@ -113,14 +115,13 @@ export default function ExercisePage() {
   }
 
   // ==============================================================
-  // TAMPILAN 1: MODE RIWAYAT PEMBAHASAN (Semua soal tampil ke bawah)
+  // MODE RIWAYAT PEMBAHASAN
   // ==============================================================
   if (isReviewMode) {
     const finalScore = localStorage.getItem(`mastery_${subtopicId}`);
     return (
       <div className="min-h-screen bg-[#09090b] text-gray-100 font-sans p-4 md:p-8 pb-24">
         <div className="max-w-3xl mx-auto">
-          {/* Header Review */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 bg-blue-900/20 p-6 rounded-2xl border border-blue-500/30">
             <div>
               <button onClick={() => router.push(`/learn/${topicId}?view=latihan&subtopicId=${subtopicId}`)} className="flex items-center gap-2 text-blue-400 hover:text-blue-300 font-bold mb-2 transition-colors">
@@ -140,7 +141,6 @@ export default function ExercisePage() {
             </div>
           </div>
 
-          {/* List Semua Soal */}
           <div className="space-y-8">
             {questions.map((q, idx) => {
               const isMC = q.type.toLowerCase().includes("ganda");
@@ -159,11 +159,9 @@ export default function ExercisePage() {
                   <p className="text-lg md:text-xl text-white font-medium whitespace-pre-wrap leading-relaxed mb-6">{pData.mainText}</p>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Jawaban User */}
                     <div className="bg-zinc-900/60 p-5 rounded-xl border border-white/5">
                       <span className="block text-xs text-zinc-500 font-bold uppercase mb-2">Jawaban Anda:</span>
                       <p className="text-white text-base md:text-lg mb-4">{uAnswer || <span className="italic text-zinc-600">Tidak dijawab</span>}</p>
-                      
                       {isMC ? (
                         <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold ${isCorrectMC ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
                           {isCorrectMC ? <><FiCheckCircle /> Benar</> : <><FiXCircle /> Salah</>}
@@ -175,7 +173,6 @@ export default function ExercisePage() {
                       )}
                     </div>
 
-                    {/* Kunci Jawaban */}
                     <div className="bg-blue-900/10 p-5 rounded-xl border border-blue-500/20">
                       <span className="block text-xs text-blue-400 font-bold uppercase mb-2">Kunci Jawaban AI:</span>
                       <p className="text-blue-100 font-semibold text-base md:text-lg">{q.answer}</p>
@@ -196,7 +193,7 @@ export default function ExercisePage() {
   }
 
   // ==============================================================
-  // TAMPILAN 2: MODE LATIHAN NORMAL 
+  // MODE LATIHAN NORMAL 
   // ==============================================================
   const currentQuestion = questions[currentIndex];
   const isMultipleChoice = currentQuestion.type.toLowerCase().includes("ganda");
@@ -244,7 +241,7 @@ export default function ExercisePage() {
     const avg = questions.length > 0 ? Math.round(total / questions.length) : 0;
 
     localStorage.setItem(`mastery_${subtopicId}`, avg.toString());
-    localStorage.setItem(`answers_${subtopicId}`, JSON.stringify(userAnswersData)); // SIMPAN JAWABAN
+    localStorage.setItem(`answers_${subtopicId}`, JSON.stringify(userAnswersData));
 
     if (topicId) {
       router.push(`/learn/${topicId}?view=latihan&subtopicId=${subtopicId}`);
@@ -270,7 +267,7 @@ export default function ExercisePage() {
         </p>
       </div>
 
-      <div className="mb-8 flex-grow">
+      <div className="mb-8 grow">
         {!isSubmitted ? (
           <>
             {isMultipleChoice ? (
@@ -285,7 +282,7 @@ export default function ExercisePage() {
                           ? "border-blue-500 bg-blue-900/40 text-blue-100 shadow-[0_0_20px_rgba(59,130,246,0.2)]"
                           : "border-gray-700 bg-gray-800 text-gray-300 hover:border-gray-500 hover:bg-gray-700/50"
                       }`}>
-                      {opt.text}
+                      <span className="font-bold mr-2 text-blue-400">{opt.id}.</span> {opt.text}
                     </button>
                   ))
                 ) : (
@@ -323,8 +320,6 @@ export default function ExercisePage() {
           </>
         ) : (
           <div className="bg-gray-800 p-6 md:p-8 rounded-2xl border border-gray-700 shadow-2xl animate-in fade-in slide-in-from-bottom-4">
-            
-            {/* INDIKATOR BENAR / SALAH */}
             {isMultipleChoice ? (
                <div className={`p-5 mb-8 rounded-xl font-bold flex items-center gap-3 text-lg md:text-xl border-2 ${
                  checkIsCorrectPG() 

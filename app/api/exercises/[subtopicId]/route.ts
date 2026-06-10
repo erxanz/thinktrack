@@ -18,39 +18,65 @@ export async function GET(
       return NextResponse.json({ error: "Materi tidak ditemukan" }, { status: 404 });
     }
 
-    // Cek Database Dulu (Mencegah AI men-generate ulang / scraping)
+    // CEK DATABASE: Ambil data soal yang sudah pernah dikerjakan
     const existingExercises = await prisma.exercise.findMany({
       where: { subtopicId: subtopic.id },
       orderBy: { id: 'asc' } 
     });
 
-    if (existingExercises.length > 0) {
+    // PERLINDUNGAN: Jika jumlah soal di database PAS 5, gunakan itu.
+    if (existingExercises.length === 5) {
       return NextResponse.json({
         subtopicId,
         questions: existingExercises,
       });
+    } else if (existingExercises.length > 0) {
+      // Jika jumlahnya kurang/lebih (seperti 3 atau 222), HAPUS SEMUA agar AI buat ulang!
+      await prisma.exercise.deleteMany({
+        where: { subtopicId: subtopic.id }
+      });
     }
 
-    // INSTRUKSI DIPERTEGAS: Wajib batas 5 soal!
-    const prompt = `Anda adalah Tutor AI ThinkTrack EdTech. Buat TEPAT 5 soal latihan berdasarkan materi ini. Komposisinya WAJIB: 2 soal Pilihan Ganda dan 3 soal Esai.
+    // INSTRUKSI SUPER KETAT: Menyediakan 5 template kosong dengan format A. B. C. D. yang dipaksa enter (\n)
+    const prompt = `Anda adalah Tutor AI ThinkTrack EdTech. Buat TEPAT 5 soal latihan berdasarkan materi ini.
 Judul: "${subtopic.title}"
 Isi: "${subtopic.content}"
 
 ATURAN SANGAT KETAT:
-1. HANYA kembalikan array berisi TEPAT 5 object JSON. Jangan lebih dan jangan kurang!
-2. TIDAK BOLEH ada teks pembuka/penutup, cukup array JSON mentah.
-3. Gunakan format JSON berikut:
+1. Anda WAJIB mengisi 5 template JSON di bawah ini. Tidak boleh menambah atau mengurangi jumlah objeknya.
+2. 3 soal pertama WAJIB "pilihan ganda", 2 soal terakhir WAJIB "Esai".
+3. TIDAK BOLEH ada teks pembuka/penutup, cukup array JSON mentah.
+
+Gunakan persis format dan jumlah array ini:
 [
   {
     "type": "pilihan ganda",
-    "question": "Pertanyaan... (Sertakan opsi A. , B. , C. , D. di dalam teks)",
-    "answer": "Kunci jawaban (Misalnya: A. Jawaban)",
+    "question": "Pertanyaan 1...\\nA. Teks Opsi A\\nB. Teks Opsi B\\nC. Teks Opsi C\\nD. Teks Opsi D",
+    "answer": "A. Teks Opsi A",
+    "explanation": "Penjelasan mengapa jawaban tersebut benar"
+  },
+  {
+    "type": "pilihan ganda",
+    "question": "Pertanyaan 2...\\nA. Teks Opsi A\\nB. Teks Opsi B\\nC. Teks Opsi C\\nD. Teks Opsi D",
+    "answer": "B. Teks Opsi B",
+    "explanation": "Penjelasan mengapa jawaban tersebut benar"
+  },
+  {
+    "type": "pilihan ganda",
+    "question": "Pertanyaan 3...\\nA. Teks Opsi A\\nB. Teks Opsi B\\nC. Teks Opsi C\\nD. Teks Opsi D",
+    "answer": "C. Teks Opsi C",
     "explanation": "Penjelasan mengapa jawaban tersebut benar"
   },
   {
     "type": "Esai",
-    "question": "Pertanyaan soal esai...",
-    "answer": "Kunci jawaban / poin-poin penting yang harus ada",
+    "question": "Pertanyaan soal esai 1...",
+    "answer": "Kunci jawaban esai 1",
+    "explanation": "Penjelasan lengkap"
+  },
+  {
+    "type": "Esai",
+    "question": "Pertanyaan soal esai 2...",
+    "answer": "Kunci jawaban esai 2",
     "explanation": "Penjelasan lengkap"
   }
 ]`;
@@ -67,7 +93,7 @@ ATURAN SANGAT KETAT:
       body: JSON.stringify({
         model: "llama-3.3-70b-versatile",
         messages: [{ role: "user", content: prompt }],
-        temperature: 0.5, // Diturunkan sedikit agar AI tidak terlalu kreatif/ngelantur
+        temperature: 0.3, 
       }),
     });
 
@@ -90,9 +116,6 @@ ATURAN SANGAT KETAT:
       }
     }
 
-    // ==============================================================================
-    // PERLINDUNGAN LAPIS 2: POTONG PAKSA JIKA AI NAKAL MEMBUAT LEBIH DARI 5 SOAL
-    // ==============================================================================
     if (Array.isArray(generatedQuestions) && generatedQuestions.length > 5) {
       generatedQuestions = generatedQuestions.slice(0, 5);
     }
