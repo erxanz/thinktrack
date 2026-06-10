@@ -7,87 +7,105 @@ datasource db {
   provider = "postgresql"
 }
 
-// 1. Menambahkan profil kognitif berdasarkan dokumen
 enum CognitiveMode {
-  ANAK    // Pendekatan analogi dan imajinasi [cite: 12]
-  REMAJA  // Contoh kontekstual dan relevan [cite: 13]
-  DEWASA  // Penjelasan formal dan teoritis [cite: 14]
+  ANAK    
+  REMAJA  
+  DEWASA  
 }
 
 model User {
-  id            String        @id @default(uuid())
+  id            String          @id @default(uuid())
   name          String
-  email         String        @unique
+  email         String          @unique
   password      String
-  cognitiveMode CognitiveMode @default(REMAJA) // Profil kognitif pengguna [cite: 18]
-  createdAt     DateTime      @default(now())
+  cognitiveMode CognitiveMode   @default(REMAJA) 
+  createdAt     DateTime        @default(now())
   
-  // Relasi
-  topics        Topic[]
-  traces        ThinkingTrace[]
-  aiSettings    AISettings?
+  topics          Topic[]
+  traces          ThinkingTrace[]
+  aiSettings      AISettings?
+  
+  // RELASI BARU: Menyimpan riwayat nilai
+  exerciseResults ExerciseResult[] 
 }
 
-// 2. Model untuk menyimpan dekomposisi submateri terstruktur [cite: 19]
 model Topic {
-  id          String   @id @default(uuid())
+  id          String     @id @default(uuid())
   userId      String
-  title       String   // Contoh: Persamaan Kuadrat
-  category    String?   // Tambahkan ini (Contoh: "MATEMATIKA", "KODING", "BAHASA")
+  title       String    
+  category    String?    
   description String?
-  isCompleted Boolean  @default(false)
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isCompleted Boolean    @default(false)
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   subtopics   Subtopic[]
-  createdAt   DateTime @default(now())
+  createdAt   DateTime   @default(now())
 }
 
 model Subtopic {
-  id          String   @id @default(uuid())
-  topicId     String
-  title       String
-  level       String   // Mudah, Menengah, Sulit
-  content     String   @db.Text
-  topic       Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
-  traces      ThinkingTrace[]
-  exercises   Exercise[]
+  id        String          @id @default(uuid())
+  topicId   String
+  title     String
+  level     String    
+  content   String          @db.Text
+  topic     Topic           @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  traces    ThinkingTrace[]
+  exercises Exercise[]
+
+  // RELASI BARU: Menyimpan riwayat nilai
+  exerciseResults ExerciseResult[]
 }
 
-
-// 3. Model untuk menyimpan langkah pengerjaan (Thinking Trace) [cite: 16]
 model ThinkingTrace {
-  id               String   @id @default(uuid())
-  userId           String
-  subtopicId       String
-  inputMethod      String   // 'canvas', 'mathquill', atau 'voice' [cite: 25, 26, 27]
-  stepData         Json     // Menyimpan JSON dari langkah-langkah siswa 
-  misconceptions   Json?    // Deteksi miskonsepsi dari Claude AI [cite: 17, 24]
-  status           String   // 'pending', 'analyzed'
+  id             String   @id @default(uuid())
+  userId         String
+  subtopicId     String
+  inputMethod    String    
+  stepData       Json     
+  misconceptions Json?    
+  status         String    
   
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subtopic         Subtopic @relation(fields: [subtopicId], references: [id], onDelete: Cascade)
-  createdAt        DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subtopic       Subtopic @relation(fields: [subtopicId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
 }
 
 model Exercise {
-  id           String   @id @default(uuid())
-  subtopicId   String
-  type         String
-  question     String   @db.Text
-  answer       String   @db.Text
-  explanation  String   @db.Text
-  createdAt    DateTime @default(now())
+  id          String   @id @default(uuid())
+  subtopicId  String
+  type        String
+  question    String   @db.Text
+  answer      String   @db.Text
+  explanation String   @db.Text
+  createdAt   DateTime @default(now())
 
-  subtopic     Subtopic @relation(fields: [subtopicId], references: [id], onDelete: Cascade)
+  subtopic    Subtopic @relation(fields: [subtopicId], references: [id], onDelete: Cascade)
+}
+
+// =========================================================================
+// MODEL BARU: Menyimpan Skor, Jawaban User, dan Analisis Kesalahan ke DB
+// =========================================================================
+model ExerciseResult {
+  id               String   @id @default(uuid())
+  userId           String
+  subtopicId       String
+  score            Int      // Persentase Nilai Akhir
+  userAnswers      Json     // Array string jawaban user
+  detailedAnalysis Json     // Array status benar/salah per soal untuk rekomendasi
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subtopic         Subtopic @relation(fields: [subtopicId], references: [id], onDelete: Cascade)
+
+  // Memastikan 1 user hanya punya 1 riwayat aktif per sub-bab (bisa di-replace jika ulangi ujian)
+  @@unique([userId, subtopicId]) 
 }
 
 model AISettings {
-  id              String   @id @default(uuid())
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  // legacy fields not used elsewhere, keep flexible for providers
-  apiKey          String?
-  activeModel     String   @default("gemini-3.1-flash-lite") // Default ke Gemini
-  updatedAt       DateTime @updatedAt
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  apiKey      String?
+  activeModel String   @default("gemini-3.1-flash-lite")
+  updatedAt   DateTime @updatedAt
 }
-
