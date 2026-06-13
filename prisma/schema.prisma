@@ -73,6 +73,8 @@ model Exercise {
   id          String   @id @default(uuid())
   subtopicId  String
   type        String
+  concept     String?
+  cognitiveLevel  String?
   question    String   @db.Text
   answer      String   @db.Text
   explanation String   @db.Text

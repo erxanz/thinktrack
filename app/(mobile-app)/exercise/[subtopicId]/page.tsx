@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation"; 
 import { Button } from "@/components/ui/button";
-import { FiArrowLeft, FiCheckCircle, FiXCircle, FiRotateCcw, FiLoader } from "react-icons/fi";
+import { FiArrowLeft, FiCheckCircle, FiXCircle, FiRotateCcw, FiLoader, FiEdit3 } from "react-icons/fi";
 
 function parseQuestionData(rawText: string) {
   const parts = rawText.split(/(?=[A-D][.)]\s*)/);
@@ -22,22 +22,6 @@ function parseQuestionData(rawText: string) {
   return { mainText: rawText, options: null };
 }
 
-function calculateSimilarity(userAnswer: string, expectedAnswer: string): number {
-  if (!userAnswer.trim() || !expectedAnswer.trim()) return 0;
-  const normalize = (text: string) => text.toLowerCase().replace(/[^\w\s]/gi, '');
-  const userWords = normalize(userAnswer).split(/\s+/).filter(w => w.length > 3);
-  const aiWords = normalize(expectedAnswer).split(/\s+/).filter(w => w.length > 3);
-  if (aiWords.length === 0) return 0;
-  
-  const aiWordSet = new Set(aiWords);
-  const userWordSet = new Set(userWords);
-  let matchCount = 0;
-  userWordSet.forEach(word => { if (aiWordSet.has(word)) matchCount++; });
-  
-  let score = Math.round((matchCount / aiWordSet.size) * 100 * 1.5);
-  return score > 100 ? 100 : score;
-}
-
 export default function ExercisePage() {
   const params = useParams();
   const router = useRouter(); 
@@ -47,14 +31,17 @@ export default function ExercisePage() {
   const [questions, setQuestions] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false); // State saving
+  const [isSaving, setIsSaving] = useState(false);
+  const [isEvaluating, setIsEvaluating] = useState(false); 
 
   const [selectedPgOption, setSelectedPgOption] = useState<string>("");
   const [essayAnswer, setEssayAnswer] = useState<string>("");
+  const [scratchpadText, setScratchpadText] = useState<string>(""); 
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const [scores, setScores] = useState<number[]>([]);
   const [userAnswersData, setUserAnswersData] = useState<string[]>([]);
+  const [aiEvaluationResults, setAiEvaluationResults] = useState<any[]>([]); 
   const [isReviewMode, setIsReviewMode] = useState(false);
   const [finalDBScore, setFinalDBScore] = useState<number>(0);
 
@@ -69,7 +56,6 @@ export default function ExercisePage() {
         const subtopicData = await subtopicRes.json();
         if (subtopicData?.topicId) setTopicId(subtopicData.topicId);
 
-        // AMBIL DATA DARI DATABASE PRISMA, BUKAN LOCAL STORAGE
         const dbResultRes = await fetch(`/api/exercises/${subtopicId}/result`);
         const dbResultData = await dbResultRes.json();
         
@@ -78,7 +64,6 @@ export default function ExercisePage() {
           setFinalDBScore(dbResultData.result.score);
           setUserAnswersData(dbResultData.result.userAnswers);
         }
-
       } catch (error) {
         console.error("Gagal memuat data", error);
       } finally {
@@ -91,15 +76,17 @@ export default function ExercisePage() {
   const handleRetake = async () => {
     if (confirm("Anda yakin ingin mengulang latihan? Nilai dan riwayat jawaban sebelumnya akan dihapus dari Database.")) {
       setIsLoading(true);
-      await fetch(`/api/exercises/${subtopicId}/result`, { method: "DELETE" }); // Hapus di DB
+      await fetch(`/api/exercises/${subtopicId}/result`, { method: "DELETE" }); 
       
       setIsReviewMode(false);
       setCurrentIndex(0);
       setScores([]);
       setUserAnswersData([]);
+      setAiEvaluationResults([]);
       setIsSubmitted(false);
       setSelectedPgOption("");
       setEssayAnswer("");
+      setScratchpadText("");
       setIsLoading(false);
     }
   };
@@ -111,46 +98,58 @@ export default function ExercisePage() {
   const isMultipleChoice = currentQuestion.type.toLowerCase().includes("ganda");
   const parsedData = parseQuestionData(currentQuestion.question);
 
-  const checkIsCorrectPG = () => {
-    if (!isMultipleChoice || !selectedPgOption) return false;
-    return currentQuestion.answer.trim().toUpperCase().startsWith(selectedPgOption.toUpperCase());
-  };
+  const handleSubmit = async () => {
+    setIsEvaluating(true);
+    const answeredText = isMultipleChoice ? `${selectedPgOption} | Coretan: ${scratchpadText}` : essayAnswer;
 
-  const handleSubmit = () => {
-    setIsSubmitted(true);
-    let currentScore = 0;
-    const answeredText = isMultipleChoice ? selectedPgOption : essayAnswer;
-
-    if (isMultipleChoice) {
-      currentScore = checkIsCorrectPG() ? 100 : 0;
-    } else {
-      currentScore = calculateSimilarity(essayAnswer, currentQuestion.answer);
+    try {
+      const res = await fetch('/api/ai/evaluate-answer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: currentQuestion.question,
+          expectedAnswer: currentQuestion.answer,
+          selectedOption: isMultipleChoice ? selectedPgOption : null,
+          scratchpad: isMultipleChoice ? scratchpadText : essayAnswer, // AI mengevaluasi text box coretan/esai secara langsung
+          type: currentQuestion.type
+        })
+      });
+      
+      const evalData = await res.json();
+      
+      setIsSubmitted(true);
+      setScores((prev) => { const newScores = [...prev]; newScores[currentIndex] = evalData.score || 0; return newScores; });
+      setUserAnswersData((prev) => { const newAns = [...prev]; newAns[currentIndex] = answeredText; return newAns; });
+      setAiEvaluationResults((prev) => { const newEvals = [...prev]; newEvals[currentIndex] = evalData; return newEvals; });
+      
+    } catch (error) {
+      alert("Gagal menghubungi AI Evaluator.");
+    } finally {
+      setIsEvaluating(false);
     }
-
-    setScores((prev) => { const newScores = [...prev]; newScores[currentIndex] = currentScore; return newScores; });
-    setUserAnswersData((prev) => { const newAns = [...prev]; newAns[currentIndex] = answeredText; return newAns; });
   };
 
   const handleNext = () => {
     setIsSubmitted(false);
     setSelectedPgOption("");
     setEssayAnswer("");
+    setScratchpadText(""); 
     setCurrentIndex((prev) => prev + 1);
   };
 
-  // POST KE DATABASE
   const handleFinish = async () => {
     setIsSaving(true);
     const total = scores.reduce((acc, curr) => acc + curr, 0);
     const avg = questions.length > 0 ? Math.round(total / questions.length) : 0;
 
     const detailedAnalysis = questions.map((q, idx) => {
-      const isMC = q.type.toLowerCase().includes("ganda");
-      const uAns = userAnswersData[idx] || "";
-      const isCorrect = isMC 
-        ? q.answer.trim().toUpperCase().startsWith(uAns.toUpperCase())
-        : calculateSimilarity(uAns, q.answer) >= 60; 
-      return { questionText: q.question, isCorrect: isCorrect };
+      const aiEval = aiEvaluationResults[idx];
+      return { 
+        questionText: q.question, 
+        isCorrect: aiEval ? aiEval.is_correct : false, // Validasi kebenaran berdasarkan keputusan cerdas AI
+        concept: q.concept || "Konsep Dasar", 
+        cognitiveLevel: q.cognitiveLevel || "C3"
+      };
     });
 
     try {
@@ -170,12 +169,11 @@ export default function ExercisePage() {
         alert(`Latihan Selesai! Skor Anda: ${avg}%`);
       }
     } catch (e) {
-      alert("Terjadi kesalahan saat menyimpan ke database.");
+      alert("Terjadi kesalahan saat menyimpan data.");
       setIsSaving(false);
     }
   };
 
-  // MODE RIWAYAT PEMBAHASAN
   if (isReviewMode) {
     return (
       <div className="min-h-screen bg-[#09090b] text-gray-100 font-sans p-4 md:p-8 pb-24">
@@ -204,37 +202,29 @@ export default function ExercisePage() {
               const isMC = q.type.toLowerCase().includes("ganda");
               const pData = parseQuestionData(q.question);
               const uAnswer = userAnswersData[idx] || "";
-              const isCorrectMC = isMC && q.answer.trim().toUpperCase().startsWith(uAnswer.toUpperCase());
-              const simScore = !isMC ? calculateSimilarity(uAnswer, q.answer) : 0;
+              
+              let displayAnswer = uAnswer;
+              if (isMC) {
+                const parts = uAnswer.split(" | Coretan: ");
+                const optionOnly = parts[0] || "";
+                displayAnswer = parts.length > 1 ? `Memilih: ${optionOnly}\n\nJejak Pemikiran:\n${parts[1]}` : uAnswer;
+              }
 
               return (
                 <div key={q.id} className="bg-gray-800/80 p-6 md:p-8 rounded-2xl border border-gray-700 shadow-xl">
                   <div className="flex justify-between items-center mb-6">
-                    <span className="font-bold text-gray-400">Soal {idx + 1}</span>
+                    <span className="font-bold text-gray-400">Soal {idx + 1} <span className="ml-2 text-xs bg-purple-500/20 text-purple-300 px-2 py-1 rounded-md">{q.cognitiveLevel}</span></span>
                     <span className="text-xs font-bold px-3 py-1 bg-zinc-700 rounded-full text-zinc-300 uppercase">{q.type}</span>
                   </div>
                   <p className="text-lg md:text-xl text-white font-medium whitespace-pre-wrap leading-relaxed mb-6">{pData.mainText}</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 gap-6">
                     <div className="bg-zinc-900/60 p-5 rounded-xl border border-white/5">
-                      <span className="block text-xs text-zinc-500 font-bold uppercase mb-2">Jawaban Anda:</span>
-                      <p className="text-white text-base md:text-lg mb-4">{uAnswer || <span className="italic text-zinc-600">Tidak dijawab</span>}</p>
-                      {isMC ? (
-                        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold ${isCorrectMC ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
-                          {isCorrectMC ? <><FiCheckCircle /> Benar</> : <><FiXCircle /> Salah</>}
-                        </div>
-                      ) : (
-                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold bg-blue-500/10 text-blue-400">
-                          Kemiripan: {simScore}%
-                        </div>
-                      )}
-                    </div>
-                    <div className="bg-blue-900/10 p-5 rounded-xl border border-blue-500/20">
-                      <span className="block text-xs text-blue-400 font-bold uppercase mb-2">Kunci Jawaban AI:</span>
-                      <p className="text-blue-100 font-semibold text-base md:text-lg">{q.answer}</p>
+                      <span className="block text-xs text-zinc-500 font-bold uppercase mb-2">Jawaban Tersimpan Anda:</span>
+                      <p className="text-white text-base md:text-lg mb-4 whitespace-pre-wrap">{displayAnswer || <span className="italic text-zinc-600">Tidak dijawab</span>}</p>
                     </div>
                   </div>
                   <div className="mt-6 pt-6 border-t border-gray-700">
-                    <span className="block text-xs text-purple-400 font-bold uppercase mb-2">Penjelasan Evaluasi:</span>
+                    <span className="block text-xs text-purple-400 font-bold uppercase mb-2">Penjelasan Tutor AI:</span>
                     <p className="text-gray-300 leading-relaxed text-sm md:text-base">{q.explanation}</p>
                   </div>
                 </div>
@@ -246,7 +236,6 @@ export default function ExercisePage() {
     );
   }
 
-  // TAMPILAN NORMAL (LATIHAN)
   return (
     <div className="flex flex-col min-h-screen p-6 md:p-8 pb-24 max-w-3xl mx-auto text-gray-100 font-sans">
       <div className="mb-8 flex justify-between items-center text-base md:text-lg border-b border-gray-700 pb-4">
@@ -266,65 +255,77 @@ export default function ExercisePage() {
         {!isSubmitted ? (
           <>
             {isMultipleChoice ? (
-              <div className="flex flex-col gap-4">
-                {parsedData.options ? (
-                  parsedData.options.map((opt) => (
-                    <button
-                      key={opt.id}
-                      onClick={() => setSelectedPgOption(opt.id)}
-                      className={`p-5 md:p-6 rounded-xl border-2 text-left transition-all text-lg md:text-xl ${selectedPgOption === opt.id ? "border-blue-500 bg-blue-900/40 text-blue-100 shadow-[0_0_20px_rgba(59,130,246,0.2)]" : "border-gray-700 bg-gray-800 text-gray-300 hover:border-gray-500 hover:bg-gray-700/50"}`}>
-                      <span className="font-bold mr-2 text-blue-400">{opt.id}.</span> {opt.text}
-                    </button>
-                  ))
-                ) : (
-                  <div className="grid grid-cols-2 gap-4">
-                    {["A", "B", "C", "D"].map((opt) => (
-                      <button key={opt} onClick={() => setSelectedPgOption(opt)} className={`p-5 md:p-6 rounded-xl border-2 font-bold transition-all text-lg md:text-xl ${selectedPgOption === opt ? "border-blue-500 bg-blue-900/40 text-blue-100" : "border-gray-700 bg-gray-800 text-gray-300"}`}>
-                        Opsi {opt}
+              <div className="flex flex-col gap-6">
+                <div className="bg-zinc-900/50 p-4 rounded-xl border border-dashed border-zinc-600 focus-within:border-blue-500 transition-colors">
+                  <label className="flex items-center gap-2 text-sm font-bold text-blue-400 mb-3 uppercase tracking-wider">
+                    <FiEdit3 /> Ruang Coretan & Logika
+                  </label>
+                  <textarea
+                    value={scratchpadText}
+                    onChange={(e) => setScratchpadText(e.target.value)}
+                    placeholder="Wajib diisi! AI akan membaca coretan ini untuk membuktikan kamu tidak sekadar menebak A/B/C/D."
+                    className="w-full min-h-[100px] bg-transparent text-white placeholder-zinc-600 focus:outline-none resize-y"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  {parsedData.options ? (
+                    parsedData.options.map((opt) => (
+                      <button
+                        key={opt.id}
+                        onClick={() => setSelectedPgOption(opt.id)}
+                        className={`p-4 md:p-5 rounded-xl border-2 text-left transition-all text-lg ${selectedPgOption === opt.id ? "border-blue-500 bg-blue-900/40 text-blue-100 shadow-[0_0_20px_rgba(59,130,246,0.2)]" : "border-gray-700 bg-gray-800 text-gray-300 hover:border-gray-500 hover:bg-gray-700/50"}`}>
+                        <span className="font-bold mr-2 text-blue-400">{opt.id}.</span> {opt.text}
                       </button>
-                    ))}
-                  </div>
-                )}
+                    ))
+                  ) : (
+                    <div className="grid grid-cols-2 gap-4">
+                      {["A", "B", "C", "D"].map((opt) => (
+                        <button key={opt} onClick={() => setSelectedPgOption(opt)} className={`p-4 md:p-5 rounded-xl border-2 font-bold transition-all text-lg ${selectedPgOption === opt ? "border-blue-500 bg-blue-900/40 text-blue-100" : "border-gray-700 bg-gray-800 text-gray-300"}`}>
+                          Opsi {opt}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
               <textarea
                 value={essayAnswer}
                 onChange={(e) => setEssayAnswer(e.target.value)}
-                placeholder="Ketik jawaban Anda di sini secara detail..."
+                placeholder="Ketik logika atau hitungan Anda di sini..."
                 className="w-full min-h-50 p-5 md:p-6 bg-gray-800 border-2 border-gray-700 rounded-xl text-gray-100 text-lg md:text-xl placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all resize-y"
               />
             )}
             <Button
               onClick={handleSubmit}
-              disabled={isMultipleChoice ? !selectedPgOption : !essayAnswer.trim()}
-              className="w-full mt-8 bg-blue-600 hover:bg-blue-500 text-white p-7 rounded-xl font-bold text-lg md:text-xl transition-colors disabled:bg-gray-800 disabled:text-gray-600">
-              Periksa Jawaban
+              disabled={isEvaluating || (isMultipleChoice ? (!selectedPgOption || scratchpadText.trim().length < 3) : !essayAnswer.trim())}
+              className="w-full mt-8 bg-blue-600 hover:bg-blue-500 text-white p-7 rounded-xl font-bold text-lg md:text-xl transition-colors disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed">
+              {isEvaluating ? <FiLoader className="animate-spin mx-auto" size={24} /> : (isMultipleChoice && (!selectedPgOption || scratchpadText.trim().length < 3)) ? "Isi Ruang Coretan & Pilih Opsi" : "Periksa Logika Jawaban"}
             </Button>
           </>
         ) : (
           <div className="bg-gray-800 p-6 md:p-8 rounded-2xl border border-gray-700 shadow-2xl animate-in fade-in slide-in-from-bottom-4">
-            {isMultipleChoice ? (
-               <div className={`p-5 mb-8 rounded-xl font-bold flex items-center gap-3 text-lg md:text-xl border-2 ${checkIsCorrectPG() ? "bg-green-500/10 text-green-400 border-green-500/40 shadow-[0_0_20px_rgba(34,197,94,0.1)]" : "bg-red-500/10 text-red-400 border-red-500/40 shadow-[0_0_20px_rgba(239,68,68,0.1)]"}`}>
-                 {checkIsCorrectPG() ? "✅ Hebat! Jawaban Kamu Benar" : "❌ Sayang Sekali, Jawaban Kamu Kurang Tepat"}
-               </div>
-            ) : (
-               <div className="p-5 md:p-6 mb-8 rounded-xl bg-blue-500/10 border-2 border-blue-500/30">
-                  <div className="flex justify-between items-center mb-4">
-                     <span className="font-bold text-blue-300 text-base md:text-lg">Analisis Kemiripan Esai:</span>
-                     <span className="font-extrabold text-blue-400 text-2xl md:text-3xl">{calculateSimilarity(essayAnswer, currentQuestion.answer)}%</span>
-                  </div>
-                  <div className="w-full bg-gray-900 h-4 rounded-full overflow-hidden border border-gray-700">
-                     <div className={`h-full transition-all duration-1000 ${calculateSimilarity(essayAnswer, currentQuestion.answer) > 70 ? 'bg-green-500' : calculateSimilarity(essayAnswer, currentQuestion.answer) > 40 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${calculateSimilarity(essayAnswer, currentQuestion.answer)}%` }}></div>
-                  </div>
-               </div>
-            )}
-            <div className="flex items-center gap-3 mb-4 mt-2">
-              <div className="w-2 h-7 bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.8)]"></div>
-              <h3 className="font-extrabold text-blue-400 text-xl tracking-wide uppercase">Kunci Jawaban</h3>
-            </div>
-            <p className="font-bold text-xl md:text-2xl mb-8 text-white bg-gray-900 p-4 md:p-5 rounded-xl border border-gray-700 shadow-inner">{currentQuestion.answer}</p>
-            <h3 className="font-bold text-gray-400 mb-3 text-lg">Penjelasan:</h3>
-            <p className="text-gray-300 leading-relaxed whitespace-pre-wrap text-base md:text-lg">{currentQuestion.explanation}</p>
+             <div className="flex justify-between items-center mb-6">
+                <div className={`px-4 py-2 rounded-xl font-bold flex items-center gap-2 text-sm md:text-base border-2 ${aiEvaluationResults[currentIndex]?.is_correct ? "bg-green-500/10 text-green-400 border-green-500/40" : "bg-red-500/10 text-red-400 border-red-500/40"}`}>
+                   {aiEvaluationResults[currentIndex]?.is_correct ? "✅ Jejak Kognitif Valid" : "❌ Terdeteksi Bug Logika"}
+                </div>
+                <div className="text-right">
+                   <span className="block text-xs text-gray-400 font-bold uppercase">Skor AI Evaluator</span>
+                   <span className={`text-2xl font-black ${aiEvaluationResults[currentIndex]?.score >= 80 ? 'text-green-400' : 'text-amber-400'}`}>{aiEvaluationResults[currentIndex]?.score}%</span>
+                </div>
+             </div>
+
+             <div className="bg-purple-900/10 border border-purple-500/20 p-5 rounded-xl mb-8">
+                <span className="block text-xs text-purple-400 font-bold uppercase mb-2">Diagnosis Coretan & Jawaban (AI):</span>
+                <p className="text-gray-200 leading-relaxed text-base md:text-lg">{aiEvaluationResults[currentIndex]?.feedback}</p>
+             </div>
+
+             <div className="flex items-center gap-3 mb-4 mt-2">
+               <div className="w-2 h-7 bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.8)]"></div>
+               <h3 className="font-extrabold text-blue-400 text-xl tracking-wide uppercase">Kunci Jawaban Resmi</h3>
+             </div>
+             <p className="font-bold text-lg mb-8 text-white bg-gray-900 p-4 md:p-5 rounded-xl border border-gray-700 shadow-inner">{currentQuestion.answer}</p>
           </div>
         )}
       </div>
@@ -335,7 +336,7 @@ export default function ExercisePage() {
 
       {isSubmitted && currentIndex === questions.length - 1 && (
         <Button onClick={handleFinish} disabled={isSaving} className="w-full bg-purple-600 hover:bg-purple-500 text-white p-7 rounded-xl font-bold text-lg md:text-xl mt-2 shadow-lg shadow-purple-900/20 transition-all hover:scale-[1.02]">
-          {isSaving ? <FiLoader className="animate-spin mx-auto" /> : "Selesai Latihan & Lihat Analisis"}
+          {isSaving ? <FiLoader className="animate-spin mx-auto" /> : "Selesai Latihan & Lihat Analisis Trace"}
         </Button>
       )}
     </div>
