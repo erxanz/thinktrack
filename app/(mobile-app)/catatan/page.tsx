@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -34,7 +35,7 @@ export default function CatatanPage() {
         </Link>
 
         {/* HEADER HALAMAN */}
-        <div className="bg-gradient-to-br from-orange-900/40 to-zinc-900 border border-orange-500/20 p-8 rounded-3xl relative overflow-hidden">
+        <div className="bg-linear-to-br from-orange-900/40 to-zinc-900 border border-orange-500/20 p-8 rounded-3xl relative overflow-hidden">
           <div className="absolute -top-10 -right-10 w-40 h-40 bg-orange-600/20 blur-[60px] rounded-full pointer-events-none"></div>
           <div className="w-14 h-14 bg-orange-500/10 text-orange-400 rounded-2xl flex items-center justify-center mb-6 shadow-inner border border-orange-500/20">
             <FiCpu size={28} />
@@ -80,7 +81,7 @@ export default function CatatanPage() {
                 {/* ISI CATATAN YANG TERBUKA */}
                 <div 
                   className={`transition-all duration-300 ease-in-out ${
-                    openCheatsheetId === sheet.id ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
+                    openCheatsheetId === sheet.id ? "max-h-500 opacity-100" : "max-h-0 opacity-0"
                   }`}
                 >
                   <div className="p-6 text-sm md:text-base text-zinc-300 border-t border-white/5 bg-zinc-950 whitespace-pre-wrap leading-relaxed font-mono">
