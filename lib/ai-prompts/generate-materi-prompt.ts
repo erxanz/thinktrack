@@ -9,60 +9,63 @@ export const generateTopicPrompt = ({
   title,
   cognitiveMode = "BALANCED",
   numSubtopics = 5,
+  numExercisesPerSubtopic = 2, // Default diturunkan ke 2 agar JSON lebih ringan
 }: GenerateTopicParams) => {
   let modeInstruction = "";
 
-  // Logika Adaptive Cognitive Scaffolding
   if (cognitiveMode === "FAST") {
-    modeInstruction = "PENDEKATAN: Direct Instruction & Microlearning. Buat materi sangat ringkas, langsung ke inti (to-the-point), dan efisien untuk dihafal (LOTS).";
+    modeInstruction = `
+      PENDEKATAN: Direct Instruction & Microlearning.
+      - ROADMAP: Buat materi sangat ringkas dan langsung ke inti.
+      - ISI MATERI: Gunakan banyak bullet points dan kesimpulan cepat. Hindari paragraf panjang.
+    `;
   } else if (cognitiveMode === "TEACHER") {
-    modeInstruction = "PENDEKATAN: Inquiry-Based Learning & Socratic Method. Pecah konsep menjadi sangat detail, pelan, dan bertahap. Sisipkan pertanyaan pemantik untuk merangsang pemikiran kritis (HOTS).";
+    modeInstruction = `
+      PENDEKATAN: Inquiry-Based Learning & Socratic Method.
+      - ROADMAP: Pecah konsep secara bertahap dan logis.
+      - ISI MATERI: Sajikan materi dengan menyisipkan analogi dan pertanyaan pemantik di tengah teks agar merangsang siswa berpikir kritis, namun tetap dikemas secara ringkas dan tidak bertele-tele.
+    `;
   } else {
     // Default: BALANCED
-    modeInstruction = "PENDEKATAN: Guided Scaffolding & ZPD. Seimbangkan antara penjelasan teori dan contoh penerapan praktis secara terstruktur (MOTS).";
+    modeInstruction = `
+      PENDEKATAN: Guided Scaffolding & ZPD.
+      - ROADMAP: Alur standar yang seimbang.
+      - ISI MATERI: Struktur materi mengalir: Pengenalan singkat -> Konsep Inti -> 1 Contoh Penerapan Terstruktur.
+    `;
   }
 
   return `
     Anda adalah sistem AI ThinkTrack EdTech tingkat lanjut.
-    Buatkan roadmap kurikulum pembelajaran (dekomposisi materi) untuk topik: "${title}".
+    Tugas Anda adalah membuat ROADMAP, ISI MATERI, dan LATIHAN SOAL untuk topik: "${title}".
     
     Instruksi Khusus Mode Belajar Pengguna:
     - Target Jumlah Sub-Bab: TEPAT ${numSubtopics} Modul.
-    - Gaya Bahasa: ${modeInstruction}
+    - Jumlah Latihan Soal per Sub-Bab: TEPAT ${numExercisesPerSubtopic} Soal.
+    - Gaya Bahasa & Kedalaman: ${modeInstruction}
 
-    Kembalikan hasil HANYA dalam format JSON dengan struktur array objek persis seperti berikut tanpa tambahan teks markdown lain:
+    PENTING - ATURAN PANJANG MATERI & FORMAT JSON:
+    1. Bagian "content" berisi materi pembelajaran yang cukup lengkap dan siap baca, namun **JANGAN TERLALU PANJANG**. Buatlah padat, ringkas, dan langsung pada esensi penting materi.
+    2. DILARANG KERAS menggunakan tanda kutip ganda (") di dalam teks string materi/soal. Jika butuh tanda kutip, wajib gunakan KUTIP TUNGGAL (') saja!
+    3. DILARANG KERAS menekan Enter (baris baru literal) di dalam teks JSON. Gunakan karakter '\\n\\n' untuk memisahkan paragraf.
+    4. Rumus LaTeX wajib dibungkus blok ganda ($$ ... $$) dan gunakan double backslash (contoh: \\\\frac{1}{2}, \\\\rightarrow).
+
+    Kembalikan hasil HANYA dalam format JSON dengan struktur array objek berikut tanpa bungkusan backtick (\`\`\`json):
     {
       "subtopics": [
         {
           "title": "Judul spesifik sub-topik",
-          "content": "Penjelasan singkat tentang apa yang akan dipelajari di sub-bab ini",
-          "level": "BEGINNER | INTERMEDIATE | ADVANCED"
+          "content": "ISI MATERI MEDIUM (Ringkas, padat, gunakan Markdown, rumus LaTeX ganda, TANPA kutip ganda, sesuai mode kognitif)",
+          "level": "BEGINNER | INTERMEDIATE | ADVANCED",
+          "exercises": [
+            {
+              "type": "pilihan ganda",
+              "question": "Pertanyaan soal (Sertakan A. opsi B. opsi C. opsi D. opsi di dalam teks pertanyaan)",
+              "answer": "Kunci jawaban benar (contoh: A)",
+              "explanation": "Penjelasan ringkas mengapa jawaban tersebut benar"
+            }
+          ]
         }
       ]
     }
-    Pastikan array berisi tepat ${numSubtopics} item sesuai instruksi mode di atas.
-  `;
-};
-
-// Prompt untuk meng-generate isi detail teks materi
-export const generateSubtopicContentPrompt = (topicTitle: string, subtopicTitle: string, cognitiveMode: string = "BALANCED") => {
-  let contentStyle = "";
-
-  if (cognitiveMode === "FAST") {
-    contentStyle = "Gunakan banyak bullet points, bold pada kata kunci, dan tabel jika perlu. Hindari paragraf panjang. Langsung berikan rumus/fakta inti.";
-  } else if (cognitiveMode === "TEACHER") {
-    contentStyle = "Jangan langsung memberikan semua jawaban. Gunakan paragraf yang merangsang siswa berpikir, berikan analogi mendalam, dan akhiri setiap segmen dengan pertanyaan refleksi kecil (Socratic dialectic).";
-  } else {
-    contentStyle = "Gunakan paragraf yang mudah dibaca dengan alur: Pengenalan -> Konsep Inti -> Contoh Kasus.";
-  }
-
-  return `
-    Buatkan isi materi pembelajaran mendalam untuk sub-bab: "${subtopicTitle}" yang merupakan bagian dari topik besar "${topicTitle}".
-    
-    Gaya Penyampaian Materi:
-    ${contentStyle}
-    
-    PENTING: Untuk penulisan angka, rumus matematika, atau persamaan, WAJIB dibungkus menggunakan LaTeX blok ganda ($$ ... $$) agar ter-render dengan baik di UI pengguna.
-    Sajikan materi menggunakan format Markdown yang rapi.
   `;
 };

@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/authOptions";
 
-// Pastikan export dari file prompt Anda bernama generateTopicPrompt 
+// Pastikan export dari file prompt Anda bernama generateTopicPrompt
 // (sesuaikan jika di file Anda namanya getGenerateMateriPrompt)
 import { generateTopicPrompt } from "@/lib/ai-prompts/generate-materi-prompt";
 
@@ -112,10 +112,10 @@ export async function POST(req: Request) {
       });
     }
 
-   // 3. Ambil Cognitive Mode dari Database User
+    // 3. Ambil Cognitive Mode dari Database User
     const userProfile = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { cognitiveMode: true }
+      select: { cognitiveMode: true },
     });
 
     // CASTING KE STRING AGAR TYPESCRIPT AMAN DARI ERROR ENUM
@@ -124,23 +124,24 @@ export async function POST(req: Request) {
     // =============================================================
     // ADAPTIVE COGNITIVE SCAFFOLDING LOGIC (Penentuan Jumlah Modul)
     // =============================================================
-    let targetModules = 5; // Default: Balanced
+    let targetModules = 5; // Default untuk BALANCED dan TEACHER
     
     if (cognitiveModeStr === "FAST") {
-      targetModules = 3;
-    } else if (cognitiveModeStr === "TEACHER") {
-      targetModules = 8;
+      targetModules = 3; // FAST diset ke 3 modul
     }
 
     // Jika request mengirim parameter manual, utamakan parameter request.
     const finalNumSubtopics = body.numSubtopics ?? targetModules;
+    
+    // Jumlah latihan soal otomatis dikurangi menjadi 2 agar memperlancar JSON parsing
+    const finalNumExercises = body.numExercisesPerSubtopic ?? 2;
 
-    // 4. Generate Prompt menggunakan Cognitive Mode dan Jumlah Modul Adaptif
+    // 4. Generate Prompt menggunakan parameter adaptif yang baru
     const prompt = generateTopicPrompt({
       title: body.title,
       cognitiveMode: cognitiveModeStr,
       numSubtopics: finalNumSubtopics,
-      numExercisesPerSubtopic: body.numExercisesPerSubtopic ?? 3,
+      numExercisesPerSubtopic: finalNumExercises,
     });
 
     // 5. Resolve Provider & Model
@@ -155,10 +156,15 @@ export async function POST(req: Request) {
 
     const host = req.headers.get("host");
     const protocol = req.headers.get("x-forwarded-proto") || "http";
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (host ? `${protocol}://${host}` : null);
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      (host ? `${protocol}://${host}` : null);
 
     if (!baseUrl) {
-      return NextResponse.json({ error: "Cannot determine base URL" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Cannot determine base URL" },
+        { status: 500 },
+      );
     }
 
     const cookieHeader = req.headers.get("cookie") || "";
@@ -198,20 +204,28 @@ export async function POST(req: Request) {
     console.log("END RAW AI OUTPUT");
 
     // 7. Parsing JSON AI
-    const cleanedText = rawText.replace(/```json|```/gi, "").trim();
+    let cleanedText = rawText.replace(/```json|```/gi, "").trim();
+
+    // AUTO-FIX (Sanitizer): Memperbaiki masalah escape character LaTeX di dalam JSON string.
+    // Kode ini mendeteksi backslash tunggal (\) yang tidak diikuti oleh escape JSON valid (seperti n, t, r, ", dsb)
+    // dan mengubahnya menjadi double backslash (\\) secara otomatis sebelum di-parse.
+    cleanedText = cleanedText.replace(/\\([^"\\/bfnrtu])/g, "\\\\$1");
+
     let parsed: any;
 
     try {
       parsed = JSON.parse(cleanedText);
     } catch {
-      // Fallback index manual
+      // Fallback index manual jika teks masih ada karakter kotor di ujungnya
       const start = cleanedText.indexOf("{");
       const end = cleanedText.lastIndexOf("}");
 
       if (start === -1 || end === -1) {
         throw new Error("AI output is not valid JSON");
       }
-      parsed = JSON.parse(cleanedText.slice(start, end + 1));
+
+      const slicedText = cleanedText.slice(start, end + 1);
+      parsed = JSON.parse(slicedText);
     }
 
     // 8. Simpan Subtopik ke Database
