@@ -68,15 +68,10 @@ export default function MateriDetailPage({ params }: { params: Promise<{ subtopi
   const preprocessMateriContent = (text: string) => {
     if (!text) return "";
 
-    // Regex super cerdas: Mendeteksi persamaan angka (2 + 3 = 3 + 2) maupun fungsi aljabar f(x) = ...
-    // Mengabaikan kata-kata panjang teks bahasa Indonesia agar paragraf penjelasan tidak rusak.
     const mathEquationRegex = /(?:(?:\(?\b[a-zA-Z]{1,2}\b(?:\([a-zA-Z]\))?|\d+|\.\.\.|\bdots\b)[\s\+\-\*\/\^\(\)]*)+\s*=\s*(?:[\s\+\-\*\/\^\(\)]*(?:\b[a-zA-Z]{1,2}\b(?:\([a-zA-Z]\))?|\d+|\.\.\.|\bdots\b)\s*)+/gi;
 
     let processed = text.replace(mathEquationRegex, (match) => {
-      // Bersihkan spasi di ujung dan rapikan tanda titik tiga menjadi dot LaTeX (\dots)
       let cleanFormula = match.trim().replace(/\.\.\./g, "\\dots");
-      
-      // Memaksa enter ganda (\n\n) dan membungkus rumus dengan $$ agar otomatis membuat kotak blok lebar terpisah
       return `\n\n$$\n${cleanFormula}\n$$\n\n`;
     });
 
@@ -128,83 +123,94 @@ Jawablah dengan jelas, ringkas, dan informatif. WAJIB selalu gunakan format blok
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col items-center justify-center gap-4">
-        <FiLoader className="animate-spin text-blue-500" size={36} />
-        <p className="text-zinc-400 text-sm">Membuka lembaran materi...</p>
+      <div className="min-h-screen bg-[#FAFAFC] text-gray-900 flex flex-col items-center justify-center gap-4 font-sans">
+        <FiLoader className="animate-spin text-[#6D28D9]" size={36} />
+        <p className="text-gray-500 font-medium text-sm">Menyiapkan lembaran materi...</p>
       </div>
     );
   }
 
   if (errorMsg) {
     return (
-      <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col items-center justify-center gap-4">
-        <p className="text-red-400 text-sm">{errorMsg}</p>
-        <button onClick={() => window.close()} className="text-zinc-400 underline text-xs hover:text-white">
-          Tutup Halaman
-        </button>
+      <div className="min-h-screen bg-[#FAFAFC] text-gray-900 flex flex-col items-center justify-center gap-4 font-sans">
+        <div className="bg-rose-50 p-6 rounded-2xl border border-rose-100 text-center">
+          <p className="text-rose-600 font-bold mb-4">{errorMsg}</p>
+          <button onClick={() => window.close()} className="text-gray-500 font-semibold text-sm hover:text-gray-800 bg-white px-4 py-2 rounded-full border border-gray-200 shadow-sm transition-all">
+            Tutup Halaman
+          </button>
+        </div>
       </div>
     );
   }
 
-  // Mengubah plain text materi menjadi format terstruktur kaya matematika
   const processedContent = preprocessMateriContent(materi?.content || "");
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-zinc-100">
+    <div className="min-h-screen bg-[#FAFAFC] text-gray-900 font-sans selection:bg-[#6D28D9] selection:text-white animate-in fade-in duration-500">
       
-      {/* TOP NAVIGATION BAR */}
-      <div className="sticky top-0 z-30 bg-[#09090b]/90 backdrop-blur border-b border-white/5 px-4 py-4">
+      {/* TOP NAVIGATION BAR WITH CTA BUTTON */}
+      <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-4 py-3 md:py-4 shadow-sm">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
           <button 
             onClick={() => window.close()} 
-            className="flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors"
+            className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-[#6D28D9] transition-colors"
           >
-            <FiArrowLeft /> Tutup Halaman
+            <FiArrowLeft size={18} /> Tutup Modul
           </button>
-          <div className="flex items-center gap-2 text-xs text-zinc-500 font-medium">
-            <FiBookOpen className="text-blue-500" /> Modul Pembelajaran AI
-          </div>
+          
+          {/* TOMBOL MULAI LATIHAN DIPINDAH KE SINI */}
+          <Link 
+            href={`/exercise/${subtopicId}`}
+            className="flex items-center gap-2 bg-[#FF7849] hover:bg-[#e06336] text-white text-sm font-bold px-5 py-2.5 rounded-full transition-all shadow-[0_4px_15px_rgba(255,120,73,0.3)] hover:shadow-[0_6px_20px_rgba(255,120,73,0.4)] hover:-translate-y-0.5"
+          >
+            Mulai Latihan <FiArrowRight size={16} />
+          </Link>
         </div>
       </div>
 
       {/* MAIN CONTENT AREA */}
-      <div className="max-w-3xl mx-auto px-5 mt-10 pb-36">
+      <div className="max-w-3xl mx-auto px-5 mt-10 pb-40">
         
         {/* Header Materi */}
-        <div className="border-b border-white/5 pb-6 mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
-              <FaGem size={18} />
+        <div className="border-b border-gray-100 pb-8 mb-8">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="flex items-center justify-center w-12 h-12 rounded-[14px] bg-[#6D28D9]/10 border border-[#6D28D9]/10 text-[#6D28D9]">
+              <FaGem size={20} />
             </div>
-            <span className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-md">
-              {materi?.level || "Aktif"}
+            <span className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#6D28D9] bg-[#6D28D9]/5 border border-[#6D28D9]/10 rounded-lg shadow-sm">
+              {materi?.level || "Mastery Module"}
             </span>
           </div>
 
-          <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
+          <h1 className="text-3xl md:text-5xl font-extrabold font-heading text-gray-900 tracking-tight leading-[1.15]">
             {materi?.title}
           </h1>
 
-          <div className="flex items-center gap-4 text-xs text-zinc-500 mt-4">
-            <span className="flex items-center gap-1"><FiClock /> Waktu Baca: Bebas</span>
-            <span>Status: Terbuka di Tab Baru</span>
+          <div className="flex items-center gap-5 text-xs font-semibold text-gray-500 mt-6">
+            <span className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-md border border-gray-200 shadow-sm"><FiClock className="text-[#FF7849]" /> Waktu Bebas</span>
+            <span className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-md border border-gray-200 shadow-sm"><FiBookOpen className="text-[#6D28D9]" /> Tab Interaktif</span>
           </div>
         </div>
 
-        {/* AREA ISI MATERI DENGAN BLOCK KOTAK RUMUS SUPER EKSTETIK */}
-        <div className="prose prose-invert max-w-none text-zinc-300 text-base md:text-lg leading-relaxed bg-zinc-900/20 border border-white/5 rounded-2xl p-6 md:p-8 shadow-inner
-          [&_.katex-display]:bg-purple-500/10 
+        {/* AREA ISI MATERI */}
+        <div className="prose prose-gray max-w-none text-gray-700 text-base md:text-lg leading-relaxed bg-white border border-gray-100 rounded-[32px] p-8 md:p-12 shadow-[0_8px_30px_rgb(0,0,0,0.03)]
+          [&_.katex-display]:bg-[#6D28D9]/5 
           [&_.katex-display]:border 
-          [&_.katex-display]:border-purple-500/20 
+          [&_.katex-display]:border-[#6D28D9]/10 
           [&_.katex-display]:px-6
-          [&_.katex-display]:py-5 
-          [&_.katex-display]:rounded-2xl 
-          [&_.katex-display]:my-6
-          [&_.katex-display]:text-purple-300
+          [&_.katex-display]:py-6 
+          [&_.katex-display]:rounded-[20px] 
+          [&_.katex-display]:my-8
+          [&_.katex-display]:text-[#6D28D9]
           [&_.katex-display]:font-bold
           [&_.katex-display]:overflow-x-auto 
-          [&_.katex-display]:shadow-[0_0_25px_rgba(168,85,247,0.06)]
-          [&_p]:mb-5">
+          [&_.katex-display]:shadow-sm
+          [&_p]:mb-6
+          [&_h1]:font-heading [&_h1]:text-gray-900
+          [&_h2]:font-heading [&_h2]:text-gray-900
+          [&_h3]:font-heading [&_h3]:text-gray-800
+          [&_strong]:text-gray-900
+          [&_code]:bg-gray-50 [&_code]:text-[#FF7849] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded-md">
           <ReactMarkdown 
             remarkPlugins={[remarkGfm, remarkMath]} 
             rehypePlugins={[rehypeKatex]}
@@ -213,70 +219,46 @@ Jawablah dengan jelas, ringkas, dan informatif. WAJIB selalu gunakan format blok
           </ReactMarkdown>
         </div>
 
-        {/* --- SECTION BARU: CALL TO ACTION LATIHAN --- */}
-        <div className="mt-16 mb-12 p-10 md:p-14 rounded-[2.5rem] bg-gradient-to-br from-blue-600/20 to-purple-600/20 border border-white/10 text-center shadow-2xl shadow-blue-900/20 relative overflow-hidden">
-           {/* Efek glow tambahan di latar belakang agar lebih estetik */}
-           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1/2 bg-blue-500/10 blur-[50px] rounded-full pointer-events-none"></div>
-           
-           {/* Ikon Check Lebih Besar */}
-           <div className="relative z-10 inline-flex items-center justify-center w-20 h-20 md:w-24 md:h-24 rounded-full bg-blue-500/20 text-blue-400 mb-6 ring-4 ring-blue-500/10">
-              <FiCheckCircle size={44} className="md:w-12 md:h-12" />
-           </div>
-           
-           {/* Teks Judul Lebih Besar */}
-           <h3 className="relative z-10 text-2xl md:text-3xl font-extrabold text-white mb-4 tracking-tight">
-             Materi Selesai Dibaca!
-           </h3>
-           
-           {/* Teks Deskripsi Lebih Jelas */}
-           <p className="relative z-10 text-zinc-300 text-base md:text-lg mb-10 max-w-xl mx-auto leading-relaxed">
-              Kamu sudah mempelajari <span className="font-semibold text-white">"{materi?.title}"</span>. Sekarang, uji pemahamanmu dengan latihan soal singkat.
-           </p>
-           
-           {/* Tombol Lebih Raksasa (Full width di HP, normal di PC) */}
-           <Link 
-              href={`/exercise/${subtopicId}`}
-              className="relative z-10 inline-flex items-center justify-center w-full sm:w-auto gap-3 px-10 py-5 bg-blue-600 hover:bg-blue-500 text-white text-lg font-bold rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(37,99,235,0.4)]"
-           >
-              Mulai Latihan Sekarang <FiArrowRight size={20} />
-           </Link>
-        </div>
-
-        {/* --- AREA RIWAYAT TANYA JAWAB (MENGALIR DI BAWAH MATERI) --- */}
-        <div className="mt-12 border-t border-white/5 pt-8">
+        {/* --- AREA RIWAYAT TANYA JAWAB --- */}
+        <div className="mt-12">
           {messages.length > 0 && (
-            <div className="flex items-center gap-2 mb-6">
-              <div className="h-1.5 w-1.5 rounded-full bg-purple-500 animate-pulse" />
-              <h3 className="text-xs font-bold tracking-wider text-purple-400 uppercase">
-                Sesi Tanya Jawab AI
+            <div className="flex items-center gap-2 mb-6 ml-2">
+              <div className="h-2 w-2 rounded-full bg-[#FF7849] animate-pulse" />
+              <h3 className="text-[11px] font-bold tracking-widest text-[#FF7849] uppercase">
+                Diskusi Socrates AI
               </h3>
             </div>
           )}
 
           <div className="space-y-6">
             {messages.map((msg, index) => (
-              <div key={index} className="flex flex-col">
-                <div className="flex items-center gap-2 mb-2 text-xs font-bold tracking-wider uppercase">
+              <div key={index} className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
+                <div className={`flex items-center gap-2 mb-2 text-[10px] font-bold tracking-widest uppercase ${msg.role === "user" ? "text-[#6D28D9] mr-2" : "text-gray-500 ml-2"}`}>
                   {msg.role === "user" ? (
                     <>
-                      <FiUser className="text-zinc-500" size={13} />
-                      <span className="text-zinc-500">Pertanyaan Kamu</span>
+                      <span>Kamu</span>
+                      <FiUser size={12} />
                     </>
                   ) : (
                     <>
-                      <FiCpu className="text-purple-400" size={13} />
-                      <span className="text-purple-400">Tutor AI</span>
+                      <FiCpu size={12} />
+                      <span>Socrates Tutor</span>
                     </>
                   )}
                 </div>
-                <div className="text-base leading-relaxed text-zinc-200 
-                  [&_.katex-display]:bg-zinc-950 
+                
+                <div className={`text-sm md:text-base leading-relaxed max-w-[85%] ${
+                  msg.role === "user" 
+                    ? "bg-[#6D28D9] text-white px-6 py-4 rounded-[24px] rounded-tr-sm shadow-[0_8px_20px_rgba(109,40,217,0.15)]" 
+                    : "bg-white text-gray-800 px-6 py-5 rounded-[24px] rounded-tl-sm border border-gray-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)]"
+                }
+                  [&_.katex-display]:bg-white/10 
                   [&_.katex-display]:border 
-                  [&_.katex-display]:border-white/5 
+                  [&_.katex-display]:border-white/20 
                   [&_.katex-display]:p-4 
                   [&_.katex-display]:rounded-xl 
                   [&_.katex-display]:my-4 
-                  [&_.katex-display]:overflow-x-auto">
+                  [&_.katex-display]:overflow-x-auto`}>
                   <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
                     {msg.content}
                   </ReactMarkdown>
@@ -285,22 +267,22 @@ Jawablah dengan jelas, ringkas, dan informatif. WAJIB selalu gunakan format blok
             ))}
 
             {chatLoading && (
-              <div className="flex items-center gap-3 text-purple-400 text-sm animate-pulse py-4">
+              <div className="flex items-center gap-3 text-[#6D28D9] text-sm font-semibold bg-white px-5 py-3 rounded-full border border-gray-100 shadow-sm w-fit ml-2 animate-in fade-in">
                 <FiLoader className="animate-spin" size={16} />
                 <span>AI sedang merumuskan jawaban...</span>
               </div>
             )}
 
-            <div ref={messagesEndRef} className="h-2" />
+            <div ref={messagesEndRef} className="h-4" />
           </div>
         </div>
 
       </div>
 
       {/* --- KOTAK INPUT CHAT STATIS (Melayang di Bawah Layar) --- */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#09090b]/90 backdrop-blur-xl border-t border-white/10 px-4 py-4 md:py-6">
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-xl border-t border-gray-100 px-4 py-4 md:py-6 shadow-[0_-10px_40px_rgba(0,0,0,0.02)]">
         <div className="max-w-3xl mx-auto relative">
-          <div className="bg-[#141414] border border-white/10 rounded-2xl p-2 focus-within:border-purple-500/50 focus-within:ring-1 focus-within:ring-purple-500/20 transition-all shadow-lg">
+          <div className="bg-gray-50 border border-gray-200 rounded-[24px] p-2 focus-within:border-[#6D28D9]/40 focus-within:ring-4 focus-within:ring-[#6D28D9]/10 focus-within:bg-white transition-all shadow-inner">
             <div className="flex gap-2 items-end">
               <textarea
                 value={input}
@@ -311,21 +293,21 @@ Jawablah dengan jelas, ringkas, dan informatif. WAJIB selalu gunakan format blok
                     handleSend();
                   }
                 }}
-                placeholder="Tanyakan bagian materi yang belum kamu pahami..."
-                className="flex-1 bg-transparent px-3 py-2 text-sm md:text-base text-zinc-200 outline-none placeholder-zinc-600 resize-none max-h-32 min-h-[44px] custom-scrollbar"
+                placeholder="Tanyakan bagian materi yang belum kamu pahami ke AI..."
+                className="flex-1 bg-transparent px-4 py-3 text-sm md:text-base text-gray-900 outline-none placeholder-gray-400 resize-none max-h-32 min-h-[48px] custom-scrollbar"
                 rows={1}
                 disabled={chatLoading}
               />
               <button
                 onClick={handleSend}
                 disabled={chatLoading || !input.trim()}
-                className="flex items-center justify-center w-11 h-11 rounded-xl bg-white text-black disabled:opacity-20 disabled:bg-zinc-800 disabled:text-zinc-500 hover:bg-zinc-200 transition-colors shrink-0 mb-0.5"
+                className="flex items-center justify-center w-12 h-12 rounded-xl bg-[#6D28D9] text-white disabled:opacity-50 disabled:bg-gray-300 hover:bg-[#5b21b6] hover:-translate-y-0.5 transition-all shrink-0 mb-0.5 shadow-sm"
               >
                 <FiSend size={18} />
               </button>
             </div>
           </div>
-          <div className="text-center text-[10px] text-zinc-500 mt-3">
+          <div className="text-center text-[10px] font-medium text-gray-400 mt-3">
             ThinkTrack AI EdTech Platform • AI dapat membuat kesalahan. Evaluasi kembali jawaban untuk pemahaman terbaik.
           </div>
         </div>

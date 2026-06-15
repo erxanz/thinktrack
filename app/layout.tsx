@@ -1,22 +1,23 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Poppins, Inter } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import AuthProvider from "@/components/providers/AuthProvider";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const poppins = Poppins({
+  weight: ["400", "500", "600", "700", "800"],
   subsets: ["latin"],
+  variable: "--font-poppins",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const inter = Inter({
   subsets: ["latin"],
+  variable: "--font-inter",
 });
 
 export const metadata: Metadata = {
-  title: "Think Track AI",
-  description: "Aplikasi catatan modern dengan",
+  title: "ThinkTrack | AI-Powered Education Platform",
+  description: "Track Learning. Discover Understanding. Unlock Potential.",
 };
 
 export default function RootLayout({
@@ -27,8 +28,8 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}>
-      <body className="min-h-full flex flex-col bg-[#0e0e0e] text-zinc-50">
+      className={`${poppins.variable} ${inter.variable} h-full antialiased`}>
+      <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
         <AuthProvider>
           {children}
           <Toaster position="bottom-right" />
