@@ -28,7 +28,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <FiHome size={16} /> Ruang Belajar
           </Link>
           <Link
-            href="#"
+            href="/catatan"
             className="flex items-center gap-3 px-3 py-2.5 text-zinc-400 hover:text-zinc-100 hover:bg-white/5 rounded-lg text-sm font-medium transition-all">
             <FiBookOpen size={16} /> Semua Materi
           </Link>
