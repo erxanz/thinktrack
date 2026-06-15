@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { PrismaPg } from "@prisma/adapter-pg";
 // PERBAIKAN: Hapus "/client" di bagian paling belakang
 import { PrismaClient } from "@/app/generated/prisma"; 

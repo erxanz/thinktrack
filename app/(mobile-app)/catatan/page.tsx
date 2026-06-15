@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -99,11 +100,8 @@ export default function CatatanPage() {
               const isOpen = openCheatsheetId === sheet.id;
               return (
                 <div 
-                  key={sheet.id} 
-                  className={`bg-white rounded-[24px] border transition-all duration-300 overflow-hidden ${
-                    isOpen 
-                      ? "border-[#6D28D9]/30 shadow-[0_12px_40px_rgba(109,40,217,0.06)]" 
-                      : "border-gray-100 shadow-[0_4px_20px_rgb(0,0,0,0.01)] hover:shadow-[0_10px_30px_rgb(0,0,0,0.03)] hover:border-[#6D28D9]/20"
+                  className={`transition-all duration-300 ease-in-out ${
+                    openCheatsheetId === sheet.id ? "max-h-500 opacity-100" : "max-h-0 opacity-0"
                   }`}
                 >
                   <button 

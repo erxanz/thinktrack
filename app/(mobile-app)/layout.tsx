@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   FiHome,
   FiBookOpen,
@@ -10,6 +13,18 @@ import {
 import LogoutButton from "@/components/layout/LogoutButton";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
+  const navClass = (path: string) =>
+    pathname === path
+      ? "flex items-center gap-3 px-3 py-2.5 bg-blue-600/10 text-blue-400 rounded-lg border border-blue-500/10 text-sm font-medium transition-all"
+      : "flex items-center gap-3 px-3 py-2.5 text-zinc-400 hover:text-zinc-100 hover:bg-white/5 rounded-lg text-sm font-medium transition-all";
+
+  const mobileNavClass = (path: string) =>
+    pathname === path
+      ? "flex flex-col items-center gap-0.5 text-blue-500"
+      : "flex flex-col items-center gap-0.5 text-zinc-500 hover:text-zinc-300 transition-colors";
+
   return (
     <div className="flex h-screen bg-[#FAFAFC] text-gray-900 font-sans overflow-hidden selection:bg-[#6D28D9] selection:text-white">
       
