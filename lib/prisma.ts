@@ -1,5 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@/app/generated/prisma/client";
+// PERBAIKAN: Hapus "/client" di bagian paling belakang
+import { PrismaClient } from "@/app/generated/prisma"; 
 
 const globalForPrisma = global as unknown as {
   prisma: PrismaClient | undefined
@@ -12,7 +13,9 @@ function createPrismaClient() {
     throw new Error("DATABASE_URL is not set");
   }
 
-  const adapter = new PrismaPg({ connectionString });
+  // Catatan: Jika ada error di bagian adapter, pastikan Anda juga 
+  // menggunakan import { Pool } from 'pg' sesuai dokumentasi Prisma adapter-pg
+  const adapter = new PrismaPg({ connectionString } as any); 
 
   return new PrismaClient({
     adapter,

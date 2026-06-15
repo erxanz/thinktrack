@@ -9,6 +9,7 @@ import {
   FiCheckCircle,
   FiClock,
   FiActivity,
+  FiBookOpen,
 } from "react-icons/fi";
 import { FaGem } from "react-icons/fa"; // Tambahkan ikon permata
 import CreateTopicButton from "@/components/topic/CreateTopicButton";
@@ -45,7 +46,7 @@ export default async function WorkspaceHomePage() {
         <CreateTopicButton />
       </div>
 
-      {/* KARTU STATISTIK - Dibuat lebih ringkas */}
+      {/* KARTU STATISTIK - Dibuat lebih ringkas dengan tambahan Catatan AI */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="bg-zinc-900/40 border border-white/5 p-4 rounded-xl">
           <div className="text-zinc-500 text-[10px] font-bold uppercase mb-1 flex items-center gap-1.5">
@@ -53,23 +54,42 @@ export default async function WorkspaceHomePage() {
           </div>
           <div className="text-2xl font-bold text-white">{topics.length}</div>
         </div>
+        
         <div className="bg-zinc-900/40 border border-white/5 p-4 rounded-xl">
           <div className="text-emerald-500 text-[10px] font-bold uppercase mb-1 flex items-center gap-1.5">
             <FiCheckCircle size={12} /> Selesai
           </div>
           <div className="text-2xl font-bold text-emerald-400">0</div>
         </div>
-        <div className="bg-zinc-900/40 border border-white/5 p-4 rounded-xl col-span-2 md:col-span-2 flex items-center justify-between">
+
+        {/* MODIFIKASI: Kartu Mode Kognitif yang tadinya col-span-2 dipecah menjadi col-span-1 */}
+        <div className="bg-zinc-900/40 border border-white/5 p-4 rounded-xl flex items-center justify-between">
           <div>
             <div className="text-blue-400 text-[10px] font-bold uppercase mb-1">
               Mode Kognitif
             </div>
-            <div className="text-lg font-bold text-white">
-              Mode Remaja Aktif
+            <div className="text-sm md:text-base font-bold text-white">
+              Remaja Aktif
             </div>
           </div>
-          <FiActivity size={24} className="text-zinc-700" />
+          <FiActivity size={20} className="text-zinc-700 hidden md:block" />
         </div>
+
+        {/* TAMBAHAN: Tombol Navigasi ke Halaman Catatan Personal AI */}
+        <Link href="/catatan" className="bg-orange-950/20 border border-orange-500/20 p-4 rounded-xl flex items-center justify-between hover:bg-orange-950/40 hover:border-orange-500/50 transition-all group overflow-hidden relative">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-orange-500/10 blur-[20px] rounded-full pointer-events-none"></div>
+          <div>
+            <div className="text-orange-400 text-[10px] font-bold uppercase mb-1 relative z-10">
+              Buku Saku
+            </div>
+            <div className="text-sm md:text-base font-bold text-orange-200 relative z-10 group-hover:text-orange-400 transition-colors">
+              Catatan AI
+            </div>
+          </div>
+          <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-400 relative z-10 group-hover:scale-110 transition-transform">
+             <FiBookOpen size={16} />
+          </div>
+        </Link>
       </div>
 
       {/* ROADMAP MATERI */}
@@ -92,7 +112,7 @@ export default async function WorkspaceHomePage() {
                 key={topic.id}
                 className="group block transition-transform duration-300 hover:-translate-y-2"> {/* Tambahkan animasi terangkat di hover */}
                 
-                <div className="bg-zinc-900/40 border border-zinc-800 p-5 rounded-xl hover:border-blue-500/50 hover:shadow-[0_10px_25px_rgba(59,130,246,0.15)] transition-all">
+                <div className="bg-zinc-900/40 border border-zinc-800 p-5 rounded-xl relative overflow-hidden hover:border-blue-500/50 hover:shadow-[0_10px_25px_rgba(59,130,246,0.15)] transition-all">
                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
 
                   {/* Tambahan Ikon Permata */}
