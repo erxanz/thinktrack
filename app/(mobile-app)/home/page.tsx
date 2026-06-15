@@ -98,7 +98,7 @@ export default async function WorkspaceHomePage() {
           </div>
 
           {/* Access Pocket Book (Col 4) */}
-          <Link href="/catatan" className="group bg-gradient-to-br from-[#6D28D9] to-[#4c1d95] rounded-[24px] p-6 shadow-[0_10px_30px_rgba(109,40,217,0.2)] flex flex-col justify-between hover:scale-[1.02] transition-transform relative overflow-hidden">
+          <Link href="/modules" className="group bg-gradient-to-br from-[#6D28D9] to-[#4c1d95] rounded-[24px] p-6 shadow-[0_10px_30px_rgba(109,40,217,0.2)] flex flex-col justify-between hover:scale-[1.02] transition-transform relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-[30px] rounded-full pointer-events-none"></div>
             <div className="flex items-center gap-3 text-violet-200 font-medium text-sm mb-4 relative z-10">
               <div className="p-2 bg-white/20 text-white rounded-xl"><FiBookOpen size={18} /></div>

@@ -3,7 +3,10 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/authOptions";
-import { getGenerateMateriPrompt } from "@/lib/ai-prompts/generate-materi-prompt";
+
+// Pastikan export dari file prompt Anda bernama generateTopicPrompt 
+// (sesuaikan jika di file Anda namanya getGenerateMateriPrompt)
+import { generateTopicPrompt } from "@/lib/ai-prompts/generate-materi-prompt";
 
 const PROVIDER_DEFAULT_MODELS: Record<string, string> = {
   gemini: "gemini-3.1-flash-lite", // Default menggunakan model gratis terbaru
@@ -13,11 +16,11 @@ const PROVIDER_DEFAULT_MODELS: Record<string, string> = {
 
 function sanitizeModel(provider: string, model: string) {
   if (provider === "gemini") {
-    // Izinkan gemini-3.1-flash-lite dan gemini-3.1-flash-lite.
+    // Izinkan gemini-3.1-flash-lite.
     // Jika user menggunakan model lama seperti gemini-pro, paksa pindah ke 3-flash.
     if (
       !model.includes("gemini-3.1-flash-lite") &&
-      !model.includes("gemini-3.1-flash-lite")
+      !model.includes("gemini-3.1-flash") // jaga-jaga jika ada versi non-lite
     ) {
       return "gemini-3.1-flash-lite";
     }
@@ -85,6 +88,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "title is required" }, { status: 400 });
     }
 
+    // 1. Buat record Topic di DB
     const topic = await prisma.topic.create({
       data: {
         title: body.title,
@@ -92,6 +96,7 @@ export async function POST(req: Request) {
       },
     });
 
+    // 2. Cek & Ambil AI Settings
     let aiSettings = await prisma.aISettings.findUnique({
       where: {
         userId: session.user.id,
@@ -102,25 +107,43 @@ export async function POST(req: Request) {
       aiSettings = await prisma.aISettings.create({
         data: {
           userId: session.user.id,
-          activeModel: "gemini-3.1-flash-lite", // Default fallback pembuatan settings diset ke 3-flash
+          activeModel: "gemini-3.1-flash-lite", // Default fallback
         },
       });
     }
 
-    const cognitiveMode =
-      (
-        session.user as unknown as {
-          cognitiveMode?: string;
-        }
-      )?.cognitiveMode || "REMAJA";
+   // 3. Ambil Cognitive Mode dari Database User
+    const userProfile = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { cognitiveMode: true }
+    });
 
-    const prompt = getGenerateMateriPrompt({
+    // CASTING KE STRING AGAR TYPESCRIPT AMAN DARI ERROR ENUM
+    const cognitiveModeStr = String(userProfile?.cognitiveMode || "BALANCED");
+
+    // =============================================================
+    // ADAPTIVE COGNITIVE SCAFFOLDING LOGIC (Penentuan Jumlah Modul)
+    // =============================================================
+    let targetModules = 5; // Default: Balanced
+    
+    if (cognitiveModeStr === "FAST") {
+      targetModules = 3;
+    } else if (cognitiveModeStr === "TEACHER") {
+      targetModules = 8;
+    }
+
+    // Jika request mengirim parameter manual, utamakan parameter request.
+    const finalNumSubtopics = body.numSubtopics ?? targetModules;
+
+    // 4. Generate Prompt menggunakan Cognitive Mode dan Jumlah Modul Adaptif
+    const prompt = generateTopicPrompt({
       title: body.title,
-      cognitiveMode,
-      numSubtopics: body.numSubtopics ?? 3,
+      cognitiveMode: cognitiveModeStr,
+      numSubtopics: finalNumSubtopics,
       numExercisesPerSubtopic: body.numExercisesPerSubtopic ?? 3,
     });
 
+    // 5. Resolve Provider & Model
     const { provider, model } = resolveProviderAndModel(
       "gemini",
       aiSettings.activeModel,
@@ -131,24 +154,16 @@ export async function POST(req: Request) {
     );
 
     const host = req.headers.get("host");
-
     const protocol = req.headers.get("x-forwarded-proto") || "http";
-
-    const baseUrl =
-      process.env.NEXT_PUBLIC_APP_URL ||
-      (host ? `${protocol}://${host}` : null);
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (host ? `${protocol}://${host}` : null);
 
     if (!baseUrl) {
-      return NextResponse.json(
-        {
-          error: "Cannot determine base URL",
-        },
-        { status: 500 },
-      );
+      return NextResponse.json({ error: "Cannot determine base URL" }, { status: 500 });
     }
 
     const cookieHeader = req.headers.get("cookie") || "";
 
+    // 6. Panggil Endpoint Eksekutor AI Internal
     const aiResponse = await fetch(`${baseUrl}/api/ai`, {
       method: "POST",
       headers: {
@@ -164,21 +179,14 @@ export async function POST(req: Request) {
 
     if (!aiResponse.ok) {
       const err = await aiResponse.json().catch(() => null);
-
       console.error("AI ERROR:", err);
-
       return NextResponse.json(
-        {
-          error: "AI generation failed",
-          aiError: err?.error,
-          aiRaw: err,
-        },
+        { error: "AI generation failed", aiError: err?.error, aiRaw: err },
         { status: aiResponse.status },
       );
     }
 
     const aiData = await aiResponse.json();
-
     const rawText = aiData?.text || (typeof aiData === "string" ? aiData : "");
 
     if (!rawText) {
@@ -189,9 +197,8 @@ export async function POST(req: Request) {
     console.log(rawText);
     console.log("END RAW AI OUTPUT");
 
-    // Bersihkan teks dari Markdown terlebih dahulu
+    // 7. Parsing JSON AI
     const cleanedText = rawText.replace(/```json|```/gi, "").trim();
-
     let parsed: any;
 
     try {
@@ -204,10 +211,10 @@ export async function POST(req: Request) {
       if (start === -1 || end === -1) {
         throw new Error("AI output is not valid JSON");
       }
-
       parsed = JSON.parse(cleanedText.slice(start, end + 1));
     }
 
+    // 8. Simpan Subtopik ke Database
     const createdSubtopics = await Promise.all(
       (parsed.subtopics || []).map((subtopic: any) =>
         prisma.subtopic.create({
@@ -221,11 +228,11 @@ export async function POST(req: Request) {
       ),
     );
 
+    // 9. Simpan Exercise/Latihan ke Database (Relasi ke Subtopik)
     const exercisePromises: Promise<any>[] = [];
 
     parsed.subtopics?.forEach((subtopic: any, index: number) => {
       const created = createdSubtopics[index];
-
       if (!created) return;
 
       (subtopic.exercises || []).forEach((exercise: any) => {

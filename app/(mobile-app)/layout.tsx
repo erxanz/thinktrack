@@ -15,15 +15,10 @@ import LogoutButton from "@/components/layout/LogoutButton";
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  const navClass = (path: string) =>
-    pathname === path
-      ? "flex items-center gap-3 px-3 py-2.5 bg-blue-600/10 text-blue-400 rounded-lg border border-blue-500/10 text-sm font-medium transition-all"
-      : "flex items-center gap-3 px-3 py-2.5 text-zinc-400 hover:text-zinc-100 hover:bg-white/5 rounded-lg text-sm font-medium transition-all";
-
-  const mobileNavClass = (path: string) =>
-    pathname === path
-      ? "flex flex-col items-center gap-0.5 text-blue-500"
-      : "flex flex-col items-center gap-0.5 text-zinc-500 hover:text-zinc-300 transition-colors";
+  // Helper logic untuk menentukan halaman mana yang sedang aktif secara cerdas
+  const isHomeActive = pathname === "/home" || pathname.startsWith("/learn") || pathname.startsWith("/exercise");
+  const isModulesActive = pathname === "/modules" || pathname.startsWith("/materi-detail");
+  const isSettingsActive = pathname === "/settings";
 
   return (
     <div className="flex h-screen bg-[#FAFAFC] text-gray-900 font-sans overflow-hidden selection:bg-[#6D28D9] selection:text-white">
@@ -39,21 +34,34 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           ThinkTrack <span className="text-[#FF7849] ml-1">AI</span>
         </div>
 
-        {/* Navigasi Utama */}
+        {/* Navigasi Utama Desktop */}
         <nav className="flex-1 space-y-2">
           <Link
             href="/home"
-            className="flex items-center gap-3 px-4 py-3 bg-[#6D28D9]/5 text-[#6D28D9] rounded-xl border border-[#6D28D9]/10 text-sm font-bold transition-all shadow-[0_2px_10px_rgba(109,40,217,0.05)]">
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-all border ${
+              isHomeActive
+                ? "bg-[#6D28D9]/5 text-[#6D28D9] border-[#6D28D9]/10 font-bold shadow-[0_2px_10px_rgba(109,40,217,0.05)]"
+                : "text-gray-500 hover:text-gray-900 hover:bg-gray-50 border-transparent font-semibold"
+            }`}
+          >
             <FiHome size={18} /> Dashboard
           </Link>
+          
           <Link
-            href="#"
-            className="flex items-center gap-3 px-4 py-3 text-gray-500 hover:text-gray-900 hover:bg-gray-50 rounded-xl text-sm font-semibold transition-all">
+            href="/modules"
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-all border ${
+              isModulesActive
+                ? "bg-[#6D28D9]/5 text-[#6D28D9] border-[#6D28D9]/10 font-bold shadow-[0_2px_10px_rgba(109,40,217,0.05)]"
+                : "text-gray-500 hover:text-gray-900 hover:bg-gray-50 border-transparent font-semibold"
+            }`}
+          >
             <FiBookOpen size={18} /> Modules
           </Link>
+          
           <Link
             href="#"
-            className="flex items-center gap-3 px-4 py-3 text-gray-500 hover:text-gray-900 hover:bg-gray-50 rounded-xl text-sm font-semibold transition-all">
+            className="flex items-center gap-3 px-4 py-3 text-gray-500 hover:text-gray-900 hover:bg-gray-50 rounded-xl text-sm font-semibold transition-all border border-transparent"
+          >
             <FiActivity size={18} /> Analytics
           </Link>
         </nav>
@@ -62,11 +70,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="mt-auto border-t border-gray-100 pt-4 space-y-2">
           <Link
             href="/settings"
-            className="flex items-center gap-3 px-4 py-3 text-gray-500 hover:text-gray-900 hover:bg-gray-50 rounded-xl text-sm font-semibold transition-all">
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-all border ${
+              isSettingsActive
+                ? "bg-[#6D28D9]/5 text-[#6D28D9] border-[#6D28D9]/10 font-bold shadow-[0_2px_10px_rgba(109,40,217,0.05)]"
+                : "text-gray-500 hover:text-gray-900 hover:bg-gray-50 border-transparent font-semibold"
+            }`}
+          >
             <FiSettings size={18} /> Settings
           </Link>
           
-          {/* Tombol Logout (Dibungkus agar ukurannya rapi di Sidebar) */}
           <div className="px-2 pt-1">
             <LogoutButton />
           </div>
@@ -77,38 +89,42 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative bg-[#FAFAFC]">
         <div className="flex-1 overflow-y-auto">{children}</div>
 
-        {/* BOTTOM NAV (Untuk HP) */}
+        {/* BOTTOM NAV (Untuk Tampilan Mobile / HP) */}
         <nav className="md:hidden flex items-center justify-around px-2 py-3 border-t border-gray-100 bg-white/90 backdrop-blur-xl z-20 pb-5">
           <Link
             href="/home"
-            className="flex flex-col items-center gap-1.5 text-[#6D28D9]">
-            <div className="p-1.5 bg-[#6D28D9]/10 rounded-lg">
+            className={`flex flex-col items-center gap-1.5 transition-colors ${isHomeActive ? "text-[#6D28D9]" : "text-gray-400"}`}
+          >
+            <div className={`p-1.5 rounded-lg transition-all ${isHomeActive ? "bg-[#6D28D9]/10" : ""}`}>
               <FiHome size={20} />
             </div>
-            <span className="text-[10px] font-bold">Home</span>
+            <span className={`text-[10px] ${isHomeActive ? "font-bold" : "font-semibold"}`}>Home</span>
           </Link>
           
           <Link
-            href="#"
-            className="flex flex-col items-center gap-1.5 text-gray-400 hover:text-gray-600 transition-colors">
-            <div className="p-1.5">
+            href="/modules"
+            className={`flex flex-col items-center gap-1.5 transition-colors ${isModulesActive ? "text-[#6D28D9]" : "text-gray-400"}`}
+          >
+            <div className={`p-1.5 rounded-lg transition-all ${isModulesActive ? "bg-[#6D28D9]/10" : ""}`}>
               <FiBookOpen size={20} />
             </div>
-            <span className="text-[10px] font-semibold">Materi</span>
+            <span className={`text-[10px] ${isModulesActive ? "font-bold" : "font-semibold"}`}>Modules</span>
           </Link>
           
           <Link
             href="/settings"
-            className="flex flex-col items-center gap-1.5 text-gray-400 hover:text-gray-600 transition-colors">
-            <div className="p-1.5">
+            className={`flex flex-col items-center gap-1.5 transition-colors ${isSettingsActive ? "text-[#6D28D9]" : "text-gray-400"}`}
+          >
+            <div className={`p-1.5 rounded-lg transition-all ${isSettingsActive ? "bg-[#6D28D9]/10" : ""}`}>
               <FiSettings size={20} />
             </div>
-            <span className="text-[10px] font-semibold">Settings</span>
+            <span className={`text-[10px] ${isSettingsActive ? "font-bold" : "font-semibold"}`}>Settings</span>
           </Link>
           
           <Link
             href="#"
-            className="flex flex-col items-center gap-1.5 text-gray-400 hover:text-red-500 transition-colors">
+            className="flex flex-col items-center gap-1.5 text-gray-400 hover:text-red-500 transition-colors"
+          >
             <div className="p-1.5">
               <FiLogOut size={20} />
             </div>

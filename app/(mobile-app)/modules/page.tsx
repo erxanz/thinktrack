@@ -1,11 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useState } from "react";
-import { FiChevronDown, FiBookOpen, FiArrowLeft, FiCpu, FiZap, FiCheckCircle } from "react-icons/fi";
-import Link from "next/link";
+import { FiChevronDown, FiBookOpen, FiCpu, FiZap, FiCheckCircle } from "react-icons/fi";
 
-export default function CatatanPage() {
+export default function ModulesPage() {
   const [cheatsheets, setCheatsheets] = useState<any[]>([]);
   const [openCheatsheetId, setOpenCheatsheetId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -29,16 +27,8 @@ export default function CatatanPage() {
     <div className="min-h-screen w-full bg-[#FAFAFC] text-gray-900 font-sans p-6 md:p-10 pb-32 selection:bg-[#6D28D9] selection:text-white">
       <div className="max-w-[1000px] mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         
-        {/* NAVIGASI KEMBALI */}
-        <Link 
-          href="/home" 
-          className="inline-flex items-center gap-2 text-gray-500 hover:text-[#6D28D9] transition-colors font-semibold text-sm bg-white px-4 py-2 rounded-full border border-gray-100 shadow-sm hover:shadow transition-all group w-fit"
-        >
-          <FiArrowLeft className="group-hover:-translate-x-0.5 transition-transform" /> Back to Dashboard
-        </Link>
-
         {/* HEADER HALAMAN */}
-        <div className="bg-white border border-gray-100 p-8 md:p-10 rounded-[24px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] relative overflow-hidden flex flex-col md:flex-row gap-6 items-start justify-between">
+        <div className="bg-white border border-gray-100 p-8 md:p-10 rounded-[24px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] relative overflow-hidden flex flex-col md:flex-row gap-6 items-start justify-between mt-4">
           <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-[#6D28D9]/5 to-[#FF7849]/5 blur-[50px] rounded-full pointer-events-none"></div>
           
           <div className="space-y-4 max-w-2xl relative z-10">
@@ -46,7 +36,7 @@ export default function CatatanPage() {
               <FiZap size={12} className="animate-pulse" /> Knowledge Synchronization Active
             </div>
             <h1 className="text-3xl md:text-4xl font-extrabold font-heading text-gray-900 tracking-tight">
-              AI Cognitive <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#6D28D9] to-[#8B5CF6]">Pocket Book</span>
+              AI Cognitive <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#6D28D9] to-[#8B5CF6]">Modules</span>
             </h1>
             <p className="text-gray-500 text-sm md:text-base leading-relaxed">
               Kumpulan <strong className="text-gray-800 font-semibold">Micro-Cheatsheets</strong> personalisasi milikmu. AI menyusun modul ringkas ini secara otomatis berdasarkan celah logika dan miskonsepsi yang berhasil kamu perbaiki selama latihan soal.
@@ -100,8 +90,11 @@ export default function CatatanPage() {
               const isOpen = openCheatsheetId === sheet.id;
               return (
                 <div 
-                  className={`transition-all duration-300 ease-in-out ${
-                    openCheatsheetId === sheet.id ? "max-h-500 opacity-100" : "max-h-0 opacity-0"
+                  key={sheet.id} 
+                  className={`bg-white rounded-[24px] border transition-all duration-300 overflow-hidden ${
+                    isOpen 
+                      ? "border-[#6D28D9]/30 shadow-[0_12px_40px_rgba(109,40,217,0.06)]" 
+                      : "border-gray-100 shadow-[0_4px_20px_rgb(0,0,0,0.01)] hover:shadow-[0_10px_30px_rgb(0,0,0,0.03)] hover:border-[#6D28D9]/20"
                   }`}
                 >
                   <button 
